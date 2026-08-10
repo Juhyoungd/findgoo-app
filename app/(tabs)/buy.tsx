@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { PostCard } from "@/src/components/market/PostCard";
+import { PostSearchBar } from "@/src/components/market/PostSearchBar";
 import { categories } from "@/src/constants/feature-spec";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
@@ -16,11 +18,16 @@ export default function BuyScreen() {
   const router = useRouter();
   const { posts, savedPostIds, toggleSaved } = useAppData();
   const [category, setCategory] = useState("전체");
+  const [query, setQuery] = useState("");
 
-  const filtered = useMemo(
-    () => posts.filter((post) => post.type === "buy" && (category === "전체" || post.category === category)),
-    [posts, category],
-  );
+  const filtered = useMemo(() => {
+    const keyword = query.trim().toLocaleLowerCase("ko-KR");
+    return posts.filter((post) => {
+      if (post.type !== "buy" || (category !== "전체" && post.category !== category)) return false;
+      if (!keyword) return true;
+      return [post.title, post.description, post.category, post.region, post.author].some((value) => value.toLocaleLowerCase("ko-KR").includes(keyword));
+    });
+  }, [posts, category, query]);
 
   function openPost(post: Post) {
     Alert.alert(post.title, `${post.description}\n\n희망 가격: ${won(post.price)}`);
@@ -38,18 +45,16 @@ export default function BuyScreen() {
         data={filtered}
         keyExtractor={(post) => post.id}
         ListHeaderComponent={
-          <FlatList
-            horizontal
-            data={categories}
-            keyExtractor={(item) => item}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryRow}
-            renderItem={({ item }) => (
-              <Pressable onPress={() => setCategory(item)} style={[styles.categoryButton, { borderColor: palette.line, backgroundColor: category === item ? palette.ink : palette.white }]}>
-                <Text style={{ color: category === item ? palette.white : palette.muted, fontSize: 12 }}>{item}</Text>
-              </Pressable>
-            )}
-          />
+          <View>
+            <PostSearchBar query={query} onChangeQuery={setQuery} placeholder="구매글 제목, 물건, 지역을 검색해요" resultCount={filtered.length} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+              {categories.map((item) => (
+                <Pressable key={item} onPress={() => setCategory(item)} style={[styles.categoryButton, { borderColor: palette.line, backgroundColor: category === item ? palette.ink : palette.white }]}>
+                  <Text style={{ color: category === item ? palette.white : palette.muted, fontSize: 12 }}>{item}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
         }
         renderItem={({ item }) => (
           <PostCard post={item} saved={savedPostIds.includes(item.id)} totalOfferCount={item.offerCount} onOpen={openPost} onToggleSaved={(post) => toggleSaved(post.id)} />
@@ -75,7 +80,7 @@ const styles = StyleSheet.create({
   heading: { paddingHorizontal: 24, paddingTop: 16, gap: 6 },
   headingLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 1 },
   headingTitle: { fontSize: 22, fontWeight: "800" },
-  categoryRow: { gap: 8, paddingVertical: 16 },
+  categoryRow: { gap: 8, paddingVertical: 14 },
   categoryButton: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   listContent: { paddingHorizontal: 24, paddingBottom: 110 },
   empty: { alignItems: "center", gap: 8, paddingVertical: 60 },

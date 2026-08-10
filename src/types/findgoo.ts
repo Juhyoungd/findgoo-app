@@ -30,6 +30,21 @@ export type Offer = {
   message: string;
   direction: "incoming" | "outgoing";
   status: "pending" | "accepted" | "canceled" | "rejected";
+  created: string;
+};
+
+export type ReportReason = "사기 의심" | "욕설·비방" | "거래 불이행" | "부적절한 상품" | "기타";
+export type ReportStatus = "pending" | "reviewing" | "resolved";
+
+export type UserReport = {
+  id: string;
+  postId: string;
+  reporter: string;
+  reportedUser: string;
+  reason: ReportReason;
+  detail: string;
+  created: string;
+  status: ReportStatus;
 };
 
 export type ChatMessage = {

@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useAuth } from "@/src/state/AuthContext";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
+import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
 
 // [로그인] Supabase Auth 이메일/비밀번호 로그인. 다른 인증 화면들과 같은 그라데이션 블롭 + 화이트 카드 톤을 재사용
@@ -22,13 +23,13 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    const { error } = await signIn(email.trim(), password);
+    const { error, isAdmin } = await signIn(email.trim(), password);
     setLoading(false);
     if (error) {
       Alert.alert("로그인 실패", error);
       return;
     }
-    router.replace("/(tabs)");
+    router.replace(isAdmin ? "/admin" : "/(tabs)");
   }
 
   return (

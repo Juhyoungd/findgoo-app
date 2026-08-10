@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { categories, regions } from "@/src/constants/feature-spec";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import type { PostType } from "@/src/types/findgoo";

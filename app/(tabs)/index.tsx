@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -7,23 +7,19 @@ import { HomeOverview } from "@/src/components/home/HomeOverview";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
-import type { PostType } from "@/src/types/findgoo";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { palette } = useTheme();
-  const { region, posts, savedPostIds, messages } = useAppData();
-  const [query, setQuery] = useState("");
+  const { region, posts, savedPostIds, offers } = useAppData();
 
-  const chatCount = useMemo(() => new Set(messages.map((message) => message.postId)).size, [messages]);
-  const savedUrgentCount = useMemo(
-    () => posts.filter((post) => post.type === "urgent" && savedPostIds.includes(post.id)).length,
-    [posts, savedPostIds],
-  );
+  const activeTradeCount = useMemo(() => offers.filter((offer) => offer.status === "accepted").length, [offers]);
+  const pendingIncomingCount = useMemo(() => offers.filter((offer) => offer.direction === "incoming" && offer.status === "pending").length, [offers]);
+  const outgoingPendingCount = useMemo(() => offers.filter((offer) => offer.direction === "outgoing" && offer.status === "pending").length, [offers]);
+  const savedCount = useMemo(() => posts.filter((post) => savedPostIds.includes(post.id)).length, [posts, savedPostIds]);
 
-  function goToCreate(type: PostType) {
-    router.push({ pathname: "/create", params: { type } });
-  }
+  const featuredUrgent = posts.find((post) => post.type === "urgent" && post.status === "open");
+  const featuredBuy = posts.find((post) => post.type === "buy" && post.status === "open");
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
@@ -32,16 +28,20 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 110 }} keyboardShouldPersistTaps="handled">
         <HomeOverview
           region={region}
-          query={query}
-          onChangeQuery={setQuery}
-          onCreatePost={goToCreate}
-          chatCount={chatCount}
-          pendingIncomingCount={0}
-          outgoingPendingCount={0}
-          savedUrgentCount={savedUrgentCount}
-          onOpenChat={() => router.push("/chat")}
-          onOpenTrade={() => router.push("/my")}
-          onOpenMy={() => router.push("/my")}
+          featuredUrgent={featuredUrgent}
+          featuredBuy={featuredBuy}
+          activeTradeCount={activeTradeCount}
+          pendingIncomingCount={pendingIncomingCount}
+          outgoingPendingCount={outgoingPendingCount}
+          savedCount={savedCount}
+          onOpenRegion={() => router.push("/profile/region")}
+          onOpenUrgent={() => router.push("/market")}
+          onOpenBuy={() => router.push("/buy")}
+          onOpenSafety={() => router.push("/support/safety")}
+          onOpenActiveTrades={() => router.push("/my/transactions")}
+          onOpenIncomingOffers={() => router.push("/offers/received")}
+          onOpenOutgoingOffers={() => router.push("/offers/sent")}
+          onOpenSaved={() => router.push("/my/saved")}
         />
       </ScrollView>
     </SafeAreaView>

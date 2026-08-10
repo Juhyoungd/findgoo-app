@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import type { Post } from "@/src/types/findgoo";

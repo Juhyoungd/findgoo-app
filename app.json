@@ -23,7 +23,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "찾구가 대전·세종의 가까운 거래 지역을 설정하기 위해 현재 위치를 사용합니다."
+        }
+      ]
     ]
   }
 }

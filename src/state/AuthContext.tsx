@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
-import { supabase } from "@/src/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 
 export type Profile = {
   id: string;
@@ -14,8 +14,9 @@ export type Profile = {
 type AuthContextValue = {
   session: Session | null;
   profile: Profile | null;
+  isAdmin: boolean;
   initializing: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; isAdmin: boolean }>;
   signUp: (input: { email: string; password: string; name: string; phone: string }) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
@@ -28,8 +29,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [initializing, setInitializing] = useState(true);
+  // [관리자 계정] 운영 환경에서는 Supabase app_metadata.role만 신뢰합니다.
+  // Supabase가 없는 로컬 베타에서는 관리자 화면을 검토할 수 있도록 권한을 엽니다.
+  const isAdmin = !isSupabaseConfigured || session?.user.app_metadata?.role === "admin";
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setInitializing(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setInitializing(false);
@@ -54,12 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   async function signIn(email: string, password: string) {
+    if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요.", isAdmin: false };
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     console.log("[auth] signIn 응답", { hasSession: !!data.session, error: error?.message, status: error?.status });
-    return { error: error?.message ?? null };
+    return { error: error?.message ?? null, isAdmin: data.session?.user.app_metadata?.role === "admin" };
   }
 
   async function signUp(input: { email: string; password: string; name: string; phone: string }) {
+    if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요." };
     const { data, error } = await supabase.auth.signUp({
       email: input.email,
       password: input.password,
@@ -70,10 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
   }
 
   async function resetPassword(email: string) {
+    if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요." };
     // 메일의 링크를 눌렀을 때 이 앱의 /reset-password 화면으로 돌아오도록 지정합니다.
     // Supabase 대시보드의 Authentication > URL Configuration > Redirect URLs에
     // 이 주소(패턴)를 허용 목록으로 등록해둬야 실제로 이 주소로 돌아와요.
@@ -84,8 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ session, profile, initializing, signIn, signUp, signOut, resetPassword }),
-    [session, profile, initializing],
+    () => ({ session, profile, isAdmin, initializing, signIn, signUp, signOut, resetPassword }),
+    [session, profile, isAdmin, initializing],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

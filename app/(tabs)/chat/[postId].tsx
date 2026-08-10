@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAppData } from "@/src/state/AppDataContext";
+import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
 import type { ChatMessage } from "@/src/types/findgoo";
@@ -45,6 +46,14 @@ export default function ChatThreadScreen() {
           <Text style={[styles.headerTitle, { color: palette.ink }]}>{counterparty}</Text>
           <Text style={{ color: palette.muted, fontSize: 11 }} numberOfLines={1}>{post.title}</Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${counterparty}님 신고하기`}
+          onPress={() => router.push(`/report/${post.id}`)}
+          style={({ pressed }) => [styles.reportButton, { backgroundColor: `${palette.orange}12`, borderColor: `${palette.orange}66` }, pressed && styles.reportPressed]}
+        >
+          <Text style={{ color: palette.orange, fontSize: 10, fontWeight: "800" }}>신고</Text>
+        </Pressable>
       </View>
 
       <View style={[styles.dealBanner, { backgroundColor: palette.blue }]}>
@@ -89,6 +98,8 @@ const styles = StyleSheet.create({
   missing: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1 },
   headerTitle: { fontSize: 15, fontWeight: "700" },
+  reportButton: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  reportPressed: { opacity: 0.7 },
   dealBanner: { flexDirection: "row", justifyContent: "space-between", marginHorizontal: 20, marginTop: 12, borderRadius: 10, padding: 12 },
   notice: { fontSize: 10, textAlign: "center", marginTop: 10, marginBottom: 4 },
   messages: { padding: 20, gap: 10 },

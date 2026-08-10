@@ -1,27 +1,29 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useAuth } from "@/src/state/AuthContext";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
+import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
 
 // [로그인] Supabase Auth 이메일/비밀번호 로그인. 다른 인증 화면들과 같은 그라데이션 블롭 + 화이트 카드 톤을 재사용
 export default function LoginScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { session, signIn } = useAuth();
+  const { session, isAdmin, signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   // signIn()이 끝난 직후 바로 router.replace를 부르면, AuthContext의 session 상태가
-  // 아직 갱신되기 전이라 (tabs) 레이아웃의 로그인 가드가 다시 /login으로 되돌려보내는
+  // 아직 갱신되기 전이라 (tabs)/admin 레이아웃의 로그인 가드가 다시 /login으로 되돌려보내는
   // 경합 상태가 생길 수 있어요. 그래서 session이 실제로 채워지는 걸 보고 이동시킵니다.
+  // isAdmin도 session에서 파생되는 값이라 같이 반영된 뒤에 이동해요.
   useEffect(() => {
-    if (session) router.replace("/(tabs)");
-  }, [session, router]);
+    if (session) router.replace(isAdmin ? "/admin" : "/(tabs)");
+  }, [session, isAdmin, router]);
 
   async function submit() {
     if (!email.trim() || !password.trim()) {

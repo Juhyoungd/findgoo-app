@@ -1,26 +1,30 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
+import { useAuth } from "@/src/state/AuthContext";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
 import { authStyles as s } from "@/src/components/auth/authStyles";
 
-// [회원가입] 이름/아이디(중복확인)/비밀번호/휴대폰 인증/약관 동의로 구성된 보편적인 가입 폼 배치
+// [회원가입] 이름/이메일/비밀번호/휴대폰 인증/약관 동의로 구성된 보편적인 가입 폼 배치
 // 로그인/아이디찾기와 같은 톤을 유지하면서, 한 화면에 들어오도록 여백과 요소 높이를 살짝만 줄였습니다.
+// 실제 계정 생성은 Supabase Auth(이메일/비밀번호)로 처리하고, 이름/휴대폰은 profiles 테이블에 저장됩니다.
+// 휴대폰 인증은 아직 SMS 연동 전이라 베타 목업(6자리 아무 값 통과)입니다.
 export default function SignupScreen() {
   const { palette } = useTheme();
   const router = useRouter();
+  const { signUp } = useAuth();
 
   const [name, setName] = useState("");
-  const [userId, setUserId] = useState("");
-  const [idAvailable, setIdAvailable] = useState<boolean | null>(null);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -34,17 +38,6 @@ export default function SignupScreen() {
     setAgreeMarketing(next);
   }
 
-  function changeUserId(value: string) {
-    setUserId(value);
-    setIdAvailable(null);
-  }
-
-  function checkIdAvailable() {
-    if (!userId.trim()) return Alert.alert("아이디를 입력해주세요");
-    setIdAvailable(true);
-    Alert.alert("확인 완료", "사용할 수 있는 아이디예요.");
-  }
-
   function requestCode() {
     if (!phone.trim()) return Alert.alert("휴대폰번호를 입력해주세요");
     setCodeSent(true);
@@ -56,15 +49,20 @@ export default function SignupScreen() {
     setVerified(true);
   }
 
-  function submit() {
+  async function submit() {
     if (!name.trim()) return Alert.alert("이름을 입력해주세요");
-    if (!userId.trim() || idAvailable !== true) return Alert.alert("아이디 중복확인을 완료해주세요");
+    if (!email.trim()) return Alert.alert("이메일을 입력해주세요");
     if (password.length < 8) return Alert.alert("비밀번호는 8자 이상 입력해주세요");
     if (password !== confirmPassword) return Alert.alert("비밀번호가 서로 달라요");
     if (!verified) return Alert.alert("휴대폰 인증번호 확인을 완료해주세요");
     if (!agreeTerms || !agreePrivacy) return Alert.alert("필수 약관에 동의해주세요");
 
-    Alert.alert("가입 완료", "찾구 회원이 되신 걸 환영해요!");
+    setLoading(true);
+    const { error } = await signUp({ email: email.trim(), password, name: name.trim(), phone: phone.trim() });
+    setLoading(false);
+    if (error) return Alert.alert("가입 실패", error);
+
+    Alert.alert("가입 완료", "이메일로 확인 메일을 보냈어요. 확인 후 로그인해주세요.");
     router.replace("/login");
   }
 
@@ -95,20 +93,16 @@ export default function SignupScreen() {
               style={[s.input, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
             />
 
-            <View style={s.inlineRow}>
-              <TextInput
-                value={userId}
-                onChangeText={changeUserId}
-                placeholder="아이디"
-                placeholderTextColor={palette.muted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={[s.input, s.inlineInput, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
-              />
-              <Pressable onPress={checkIdAvailable} style={[s.pillButton, compact.pillButton, { borderColor: palette.line, backgroundColor: palette.white }]}>
-                <Text style={[s.pillButtonText, { color: palette.ink }]}>{idAvailable ? "확인됨" : "중복확인"}</Text>
-              </Pressable>
-            </View>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="이메일"
+              placeholderTextColor={palette.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              style={[s.input, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
+            />
 
             <TextInput
               value={password}
@@ -191,8 +185,8 @@ export default function SignupScreen() {
               <Text style={[s.checkRequiredTag, { color: palette.muted }]}>선택</Text>
             </Pressable>
 
-            <Pressable onPress={submit} style={[s.bigPillButton, compact.bigPillButton, { backgroundColor: palette.lime }]}>
-              <Text style={{ color: palette.white, fontWeight: "700", fontSize: 15 }}>가입하기</Text>
+            <Pressable onPress={submit} disabled={loading} style={[s.bigPillButton, compact.bigPillButton, { backgroundColor: palette.lime, opacity: loading ? 0.7 : 1 }]}>
+              {loading ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "700", fontSize: 15 }}>가입하기</Text>}
             </Pressable>
           </View>
         </ScrollView>

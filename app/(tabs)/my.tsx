@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
+import { useAuth } from "@/src/state/AuthContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
 import type { AppNotice, Post } from "@/src/types/findgoo";
@@ -15,6 +16,7 @@ const noticeIcon: Record<AppNotice["kind"], string> = {
 export default function MyScreen() {
   const { palette, activeTheme, nextTheme, cycleTheme } = useTheme();
   const { nickname, region, posts, savedPostIds, notices, markNoticeRead, unreadNoticeCount } = useAppData();
+  const { signOut } = useAuth();
 
   const myPosts = useMemo(() => posts.filter((post) => post.mine), [posts]);
   const buyPostCount = myPosts.filter((post) => post.type === "buy").length;
@@ -94,7 +96,15 @@ export default function MyScreen() {
           ))}
         </Section>
 
-        <Pressable onPress={() => Alert.alert("로그아웃", "비회원 체험 프로필에서 로그아웃했어요.")} style={[styles.logout, { borderColor: palette.line }]}>
+        <Pressable
+          onPress={() =>
+            Alert.alert("로그아웃", "로그아웃 하시겠어요?", [
+              { text: "취소", style: "cancel" },
+              { text: "로그아웃", style: "destructive", onPress: signOut },
+            ])
+          }
+          style={[styles.logout, { borderColor: palette.line }]}
+        >
           <Text style={{ color: palette.muted, fontWeight: "600", fontSize: 13 }}>로그아웃</Text>
         </Pressable>
       </ScrollView>

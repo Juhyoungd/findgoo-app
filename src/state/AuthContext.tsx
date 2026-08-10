@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
+import * as Linking from "expo-linking";
 import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 
 export type Profile = {
@@ -64,16 +65,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signIn(email: string, password: string) {
     if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요.", isAdmin: false };
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log("[auth] signIn 응답", { hasSession: !!data.session, error: error?.message, status: error?.status });
     return { error: error?.message ?? null, isAdmin: data.session?.user.app_metadata?.role === "admin" };
   }
 
   async function signUp(input: { email: string; password: string; name: string; phone: string }) {
     if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요." };
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: input.email,
       password: input.password,
       options: { data: { name: input.name, phone: input.phone } },
     });
+    console.log("[auth] signUp 응답", { userId: data.user?.id, hasSession: !!data.session, error: error?.message });
     return { error: error?.message ?? null };
   }
 
@@ -84,7 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function resetPassword(email: string) {
     if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요." };
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    // 메일의 링크를 눌렀을 때 이 앱의 /reset-password 화면으로 돌아오도록 지정합니다.
+    // Supabase 대시보드의 Authentication > URL Configuration > Redirect URLs에
+    // 이 주소(패턴)를 허용 목록으로 등록해둬야 실제로 이 주소로 돌아와요.
+    const redirectTo = Linking.createURL("reset-password");
+    console.log("[auth] resetPassword redirectTo", redirectTo);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     return { error: error?.message ?? null };
   }
 

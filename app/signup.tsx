@@ -46,8 +46,10 @@ export default function SignupScreen() {
   }
 
   function confirmCode() {
+    if (!codeSent) return Alert.alert("먼저 인증번호 전송을 눌러주세요");
     if (code.length !== 6) return Alert.alert("인증번호 6자리를 입력해주세요");
     setVerified(true);
+    Alert.alert("인증 완료", "휴대폰 인증이 확인됐어요.");
   }
 
   async function submit() {
@@ -59,9 +61,19 @@ export default function SignupScreen() {
     if (!agreeTerms || !agreePrivacy) return Alert.alert("필수 약관에 동의해주세요");
 
     setLoading(true);
-    const { error } = await signUp({ email: email.trim(), password, name: name.trim(), phone: phone.trim() });
-    setLoading(false);
-    if (error) return Alert.alert("가입 실패", error);
+    console.log("[signup] submit 시작", { email: email.trim() });
+    try {
+      const { error } = await signUp({ email: email.trim(), password, name: name.trim(), phone: phone.trim() });
+      console.log("[signup] signUp 결과", { error });
+      if (error) return Alert.alert("가입 실패", error);
+    } catch (err) {
+      console.log("[signup] signUp 예외", err);
+      Alert.alert("가입 실패", err instanceof Error ? err.message : String(err));
+      return;
+    } finally {
+      setLoading(false);
+    }
+    console.log("[signup] 성공, 로그인으로 이동");
 
     Alert.alert("가입 완료", "이메일로 확인 메일을 보냈어요. 확인 후 로그인해주세요.");
     router.replace("/login");
@@ -146,10 +158,11 @@ export default function SignupScreen() {
                 placeholderTextColor={palette.muted}
                 keyboardType="number-pad"
                 maxLength={6}
-                style={[s.input, s.inlineInput, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
+                editable={!verified}
+                style={[s.input, s.inlineInput, compact.input, { color: palette.ink, borderColor: verified ? palette.lime : palette.line, backgroundColor: palette.paper }]}
               />
-              <Pressable onPress={confirmCode} style={[s.pillButton, compact.pillButton, { borderColor: palette.line, backgroundColor: palette.white }]}>
-                <Text style={[s.pillButtonText, { color: palette.ink }]}>{verified ? "완료" : "확인"}</Text>
+              <Pressable onPress={confirmCode} style={[s.pillButton, compact.pillButton, { borderColor: verified ? palette.lime : palette.line, backgroundColor: verified ? palette.lime : palette.white }]}>
+                <Text style={[s.pillButtonText, { color: verified ? palette.white : palette.ink }]}>{verified ? "완료" : "확인"}</Text>
               </Pressable>
             </View>
 

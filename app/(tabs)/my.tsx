@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, type Href } from "expo-router";
 import { MotionPressable } from "@/src/components/common/MotionPressable";
@@ -44,6 +44,12 @@ export default function MyScreen() {
   const savedPosts = useMemo(() => posts.filter((post) => savedPostIds.includes(post.id)), [posts, savedPostIds]);
 
   function confirmSignOut() {
+    // react-native-web에서는 Alert.alert의 버튼 콜백(onPress)이 안정적으로 동작하지 않아서
+    // 웹에서는 브라우저 기본 confirm으로, 앱(iOS/Android)에서는 네이티브 Alert로 분기합니다.
+    if (Platform.OS === "web") {
+      if (window.confirm("로그아웃 하시겠어요?")) signOut();
+      return;
+    }
     Alert.alert("로그아웃", "로그아웃 하시겠어요?", [
       { text: "취소", style: "cancel" },
       { text: "로그아웃", style: "destructive", onPress: signOut },

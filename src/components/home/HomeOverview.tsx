@@ -1,121 +1,144 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { MotionPressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
-import type { PostType } from "@/src/types/findgoo";
+import { won } from "@/src/utils/format";
+import type { Post } from "@/src/types/findgoo";
 
 type HomeOverviewProps = {
   region: string;
-  query: string;
-  onChangeQuery: (value: string) => void;
-  onCreatePost: (type: PostType) => void;
-  chatCount: number;
+  featuredUrgent?: Post;
+  featuredBuy?: Post;
+  activeTradeCount: number;
   pendingIncomingCount: number;
   outgoingPendingCount: number;
-  savedUrgentCount: number;
-  onOpenChat: () => void;
-  onOpenTrade: () => void;
-  onOpenMy: () => void;
+  savedCount: number;
+  onOpenRegion: () => void;
+  onOpenUrgent: () => void;
+  onOpenBuy: () => void;
+  onOpenSafety: () => void;
+  onOpenActiveTrades: () => void;
+  onOpenIncomingOffers: () => void;
+  onOpenOutgoingOffers: () => void;
+  onOpenSaved: () => void;
 };
 
-// [홈] 검색, 빠른 글쓰기, 활동 요약을 모은 홈 화면 (웹 HomeOverview의 RN 버전)
-// 배경 블롭은 화면 전체에 깔리는 <BackgroundBlobs />(SafeAreaView 레벨)가 담당하므로,
-// 이 카드는 배경을 투명하게 두어 블롭이 카드 안에 갇히지 않고 화면 크기 그대로 비쳐 보이게 합니다.
-export function HomeOverview({ region, query, onChangeQuery, onCreatePost, chatCount, pendingIncomingCount, outgoingPendingCount, savedUrgentCount, onOpenChat, onOpenTrade, onOpenMy }: HomeOverviewProps) {
-  const { activeTheme, palette, cycleTheme } = useTheme();
+// [홈] 등록 기능은 하단 중앙 버튼에 집중하고, 홈은 동네 현황·추천 글·내 거래 활동을 빠르게 확인합니다.
+export function HomeOverview({
+  region,
+  featuredUrgent,
+  featuredBuy,
+  activeTradeCount,
+  pendingIncomingCount,
+  outgoingPendingCount,
+  savedCount,
+  onOpenRegion,
+  onOpenUrgent,
+  onOpenBuy,
+  onOpenSafety,
+  onOpenActiveTrades,
+  onOpenIncomingOffers,
+  onOpenOutgoingOffers,
+  onOpenSaved,
+}: HomeOverviewProps) {
+  const { palette } = useTheme();
 
   return (
     <View style={styles.overview}>
-      <View style={styles.welcomeRow}>
-        <View style={styles.welcomeText}>
-          <Text style={[styles.regionLabel, { color: palette.lime }]}>⌖ {region}</Text>
-          <Text style={[styles.title, { color: palette.ink }]}>무엇을 찾고 있나요?</Text>
-          <Text style={[styles.subtitle, { color: palette.muted }]}>원하는 물건이나 도움이 필요한 일을 먼저 올려보세요.</Text>
-        </View>
-        <Pressable
-          onPress={cycleTheme}
-          style={[styles.paletteSwitch, { backgroundColor: palette.white, borderColor: palette.line }]}
-          accessibilityLabel={`현재 ${activeTheme.label} 색상, 다음 색상으로 변경`}
-        >
-          <Text style={{ fontSize: 16 }}>{activeTheme.icon}</Text>
-        </Pressable>
+      <MotionPressable onPress={onOpenRegion} style={[styles.regionButton, { backgroundColor: palette.white, borderColor: palette.line }]} accessibilityLabel="활동 지역 설정 열기">
+        <View style={[styles.pin, { backgroundColor: palette.blue }]}><Text style={{ color: palette.lime, fontWeight: "900" }}>⌖</Text></View>
+        <View style={{ flex: 1 }}><Text style={[styles.regionEyebrow, { color: palette.muted }]}>내 활동 지역</Text><Text style={[styles.regionName, { color: palette.ink }]} numberOfLines={1}>{region}</Text></View>
+        <Text style={{ color: palette.muted, fontSize: 18 }}>›</Text>
+      </MotionPressable>
+
+      <View style={[styles.hero, { backgroundColor: palette.ink }]}>
+        <View style={[styles.heroGlow, { backgroundColor: palette.blue }]} />
+        <View style={[styles.betaChip, { backgroundColor: `${palette.white}1a` }]}><Text style={styles.betaText}>대전·세종 BETA</Text></View>
+        <Text style={styles.heroTitle}>필요한 것을 먼저 말하면,{"\n"}동네가 답해줘요.</Text>
+        <Text style={styles.heroBody}>구매 희망과 급한 도움을 둘러보고 제안으로 거래를 시작하세요.</Text>
       </View>
 
-      <View style={[styles.searchBar, { backgroundColor: palette.white, borderColor: palette.line }]}>
-        <Text style={{ fontSize: 18, color: palette.muted }}>⌕</Text>
-        <TextInput
-          value={query}
-          onChangeText={onChangeQuery}
-          placeholder="물건, 심부름, 일손을 검색해요"
-          placeholderTextColor={palette.muted}
-          style={[styles.searchInput, { color: palette.ink }]}
-        />
-        {query.length > 0 && (
-          <Pressable onPress={() => onChangeQuery("")} hitSlop={8}>
-            <Text style={{ color: palette.muted, fontSize: 16 }}>×</Text>
-          </Pressable>
-        )}
+      <View style={styles.sectionHeading}>
+        <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>지금 우리 동네</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>마감과 반응이 가까운 글을 골랐어요.</Text></View>
       </View>
 
-      {/* 구매글/급구 올리기 카드: 항상 세로로 배치 */}
-      <View style={styles.actions}>
-        <Pressable onPress={() => onCreatePost("buy")} style={[styles.actionButton, { backgroundColor: palette.white, borderColor: palette.line }]}>
-          <View style={[styles.actionIcon, { backgroundColor: palette.blue }]}><Text style={{ fontSize: 19, color: palette.lime }}>＋</Text></View>
-          <View style={styles.actionTextGroup}>
-            <Text style={[styles.actionTitle, { color: palette.ink }]}>구매글 올리기</Text>
-            <Text style={[styles.actionHint, { color: palette.muted }]}>찾는 물건을 알려주세요</Text>
-          </View>
-          <Text style={[styles.chevron, { color: palette.muted }]}>›</Text>
-        </Pressable>
-        <Pressable onPress={() => onCreatePost("urgent")} style={[styles.actionButton, { backgroundColor: palette.white, borderColor: palette.line }]}>
-          <View style={[styles.actionIcon, { backgroundColor: `${palette.orange}33` }]}><Text style={{ fontSize: 19, color: palette.orange }}>ϟ</Text></View>
-          <View style={styles.actionTextGroup}>
-            <Text style={[styles.actionTitle, { color: palette.ink }]}>급구 올리기</Text>
-            <Text style={[styles.actionHint, { color: palette.muted }]}>사람과 심부름을 구해요</Text>
-          </View>
-          <Text style={[styles.chevron, { color: palette.muted }]}>›</Text>
-        </Pressable>
+      <View style={styles.spotlights}>
+        <SpotlightCard label="마감 임박 급구" icon="ϟ" post={featuredUrgent} accent={palette.orange} background={`${palette.orange}10`} onPress={onOpenUrgent} />
+        <SpotlightCard label="새 구매 요청" icon="⌕" post={featuredBuy} accent={palette.lime} background={palette.white} onPress={onOpenBuy} />
       </View>
 
-      <View style={[styles.statusRow, { backgroundColor: palette.white, borderColor: palette.line }]}>
-        <Pressable onPress={onOpenChat} style={[styles.statusItem, { borderRightColor: palette.line }]}>
-          <Text style={[styles.statusValue, { color: palette.ink }]}>{chatCount}</Text>
-          <Text style={[styles.statusLabel, { color: palette.muted }]}>최근 채팅</Text>
-        </Pressable>
-        <Pressable onPress={onOpenTrade} style={[styles.statusItem, { borderRightColor: palette.line }]}>
-          <Text style={[styles.statusValue, { color: palette.ink }]}>{pendingIncomingCount}</Text>
-          <Text style={[styles.statusLabel, { color: palette.muted }]}>받은 제안</Text>
-        </Pressable>
-        <Pressable onPress={onOpenTrade} style={[styles.statusItem, { borderRightColor: palette.line }]}>
-          <Text style={[styles.statusValue, { color: palette.ink }]}>{outgoingPendingCount}</Text>
-          <Text style={[styles.statusLabel, { color: palette.muted }]}>보낸 제안</Text>
-        </Pressable>
-        <Pressable onPress={onOpenMy} style={styles.statusItem}>
-          <Text style={[styles.statusValue, { color: palette.ink }]}>{savedUrgentCount}</Text>
-          <Text style={[styles.statusLabel, { color: palette.muted }]}>찜한 급구</Text>
-        </Pressable>
+      <View style={styles.sectionHeading}>
+        <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>내 거래 활동</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>확인이 필요한 순서대로 모았어요.</Text></View>
       </View>
+
+      <View style={styles.activityGrid}>
+        <ActivityCard label="진행 중 거래" value={activeTradeCount} icon="✓" onPress={onOpenActiveTrades} />
+        <ActivityCard label="받은 제안" value={pendingIncomingCount} icon="↓" highlight onPress={onOpenIncomingOffers} />
+        <ActivityCard label="보낸 제안" value={outgoingPendingCount} icon="↑" onPress={onOpenOutgoingOffers} />
+        <ActivityCard label="찜한 글" value={savedCount} icon="♥" onPress={onOpenSaved} />
+      </View>
+
+      <MotionPressable onPress={onOpenSafety} style={[styles.guide, { backgroundColor: palette.blue, borderColor: `${palette.lime}22` }]} accessibilityLabel="안전 거래 가이드 열기">
+        <View style={[styles.guideIcon, { backgroundColor: palette.white }]}><Text style={{ color: palette.lime, fontWeight: "900" }}>✓</Text></View>
+        <View style={{ flex: 1 }}><Text style={[styles.guideTitle, { color: palette.ink }]}>처음 거래하시나요?</Text><Text style={[styles.guideBody, { color: palette.muted }]}>선입금·대리구매 전 안전 체크를 확인하세요.</Text></View>
+        <Text style={{ color: palette.lime, fontSize: 18 }}>›</Text>
+      </MotionPressable>
     </View>
   );
+
+  function ActivityCard({ label, value, icon, highlight = false, onPress }: { label: string; value: number; icon: string; highlight?: boolean; onPress: () => void }) {
+    return (
+      <MotionPressable onPress={onPress} style={[styles.activityCard, { backgroundColor: highlight ? `${palette.orange}10` : palette.white, borderColor: highlight ? `${palette.orange}55` : palette.line }]}>
+        <View style={[styles.activityIcon, { backgroundColor: highlight ? `${palette.orange}18` : palette.paper }]}><Text style={{ color: highlight ? palette.orange : palette.lime, fontWeight: "900" }}>{icon}</Text></View>
+        <Text style={[styles.activityValue, { color: highlight ? palette.orange : palette.ink }]}>{value}</Text>
+        <Text style={[styles.activityLabel, { color: palette.muted }]}>{label}</Text>
+        <Text style={[styles.activityArrow, { color: palette.muted }]}>›</Text>
+      </MotionPressable>
+    );
+  }
+
+  function SpotlightCard({ label, icon, post, accent, background, onPress }: { label: string; icon: string; post?: Post; accent: string; background: string; onPress: () => void }) {
+    return (
+      <MotionPressable onPress={onPress} style={[styles.spotlight, { backgroundColor: background, borderColor: palette.line }]}>
+        <View style={styles.spotlightLabel}><Text style={{ color: accent, fontWeight: "900" }}>{icon}</Text><Text style={[styles.spotlightEyebrow, { color: accent }]}>{label}</Text></View>
+        <Text style={[styles.spotlightTitle, { color: palette.ink }]} numberOfLines={2}>{post?.title ?? "새 글을 둘러보세요"}</Text>
+        <Text style={[styles.spotlightMeta, { color: palette.muted }]} numberOfLines={1}>{post ? `${post.region} · ${won(post.price)}` : "대전·세종 전체"}</Text>
+        <View style={[styles.openPill, { backgroundColor: accent }]}><Text style={styles.openText}>둘러보기</Text></View>
+      </MotionPressable>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
-  overview: { padding: 24, paddingTop: 24, paddingBottom: 28, gap: 0 },
-  welcomeRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 16 },
-  welcomeText: { flex: 1 },
-  regionLabel: { fontSize: 12, fontWeight: "700" },
-  title: { fontSize: 26, fontWeight: "800", marginTop: 8, marginBottom: 6, letterSpacing: -0.8 },
-  subtitle: { fontSize: 13, lineHeight: 19 },
-  paletteSwitch: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 19 },
-  searchBar: { flexDirection: "row", alignItems: "center", gap: 10, height: 52, borderWidth: 1, borderRadius: 13, paddingHorizontal: 16, marginTop: 20 },
-  searchInput: { flex: 1, fontSize: 14 },
-  actions: { gap: 10, marginTop: 16 },
-  actionButton: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 14, padding: 15, minHeight: 78 },
-  actionIcon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  actionTextGroup: { flex: 1, gap: 4 },
-  actionTitle: { fontSize: 15, fontWeight: "700" },
-  actionHint: { fontSize: 11 },
-  chevron: { fontSize: 17 },
-  statusRow: { flexDirection: "row", borderWidth: 1, borderRadius: 14, marginTop: 16, paddingVertical: 8 },
-  statusItem: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 6, borderRightWidth: 1 },
-  statusValue: { fontSize: 17, fontWeight: "800" },
-  statusLabel: { fontSize: 9 },
+  overview: { padding: 20, paddingTop: 16, paddingBottom: 28, gap: 16 },
+  regionButton: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 15, padding: 11 },
+  pin: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  regionEyebrow: { fontSize: 8, fontWeight: "800", letterSpacing: 0.5 },
+  regionName: { fontSize: 12, fontWeight: "900", marginTop: 2 },
+  hero: { position: "relative", overflow: "hidden", borderRadius: 22, padding: 21, minHeight: 176 },
+  heroGlow: { position: "absolute", right: -42, top: -32, width: 150, height: 150, borderRadius: 75, opacity: 0.42 },
+  betaChip: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
+  betaText: { color: "white", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
+  heroTitle: { color: "white", fontSize: 23, lineHeight: 31, fontWeight: "900", letterSpacing: -0.7, marginTop: 16 },
+  heroBody: { color: "rgba(255,255,255,0.64)", fontSize: 10, lineHeight: 16, marginTop: 8, maxWidth: 280 },
+  sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 2 },
+  sectionTitle: { fontSize: 16, fontWeight: "900" },
+  sectionCaption: { fontSize: 10, marginTop: 3 },
+  spotlights: { flexDirection: "row", gap: 9 },
+  spotlight: { flex: 1, minHeight: 154, borderWidth: 1, borderRadius: 18, padding: 14 },
+  spotlightLabel: { flexDirection: "row", alignItems: "center", gap: 5 },
+  spotlightEyebrow: { fontSize: 9, fontWeight: "900" },
+  spotlightTitle: { fontSize: 13, lineHeight: 19, fontWeight: "800", marginTop: 11 },
+  spotlightMeta: { fontSize: 9, marginTop: 6 },
+  openPill: { alignSelf: "flex-start", marginTop: "auto", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6 },
+  openText: { color: "white", fontSize: 8, fontWeight: "900" },
+  activityGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
+  activityCard: { position: "relative", width: "48.7%", minHeight: 92, borderWidth: 1, borderRadius: 17, padding: 13 },
+  activityIcon: { width: 29, height: 29, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  activityValue: { position: "absolute", right: 14, top: 12, fontSize: 20, fontWeight: "900" },
+  activityLabel: { fontSize: 10, fontWeight: "700", marginTop: 10 },
+  activityArrow: { position: "absolute", right: 11, bottom: 9, fontSize: 15 },
+  guide: { flexDirection: "row", alignItems: "center", gap: 11, borderWidth: 1, borderRadius: 17, padding: 14 },
+  guideIcon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  guideTitle: { fontSize: 12, fontWeight: "900" },
+  guideBody: { fontSize: 9, marginTop: 3 },
 });

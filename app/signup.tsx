@@ -15,7 +15,7 @@ import { authStyles as s } from "@/src/components/auth/authStyles";
 export default function SignupScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { signUp } = useAuth();
+  const { signUp, signOut } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -75,7 +75,12 @@ export default function SignupScreen() {
     }
     console.log("[signup] 성공, 로그인으로 이동");
 
-    Alert.alert("가입 완료", "이메일로 확인 메일을 보냈어요. 확인 후 로그인해주세요.");
+    // "이메일 확인" 설정이 꺼져있으면 signUp() 시점에 Supabase가 바로 로그인 세션까지 만들어줘요.
+    // 그 상태로 /login에 가면 로그인 화면의 "이미 로그인돼있으면 메인으로" 로직 때문에
+    // 곧장 메인으로 튕겨버리니, 로그인 화면을 보여주려면 먼저 로그아웃시켜야 해요.
+    await signOut();
+
+    Alert.alert("가입 완료", "가입이 완료됐어요. 로그인해주세요.");
     router.replace("/login");
   }
 

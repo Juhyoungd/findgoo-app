@@ -10,6 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
     "Supabase 환경변수가 없어요. .env.local에 EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY를 설정해주세요.",
   );
 }
+console.log("[supabase] client 초기화", { url: supabaseUrl, hasKey: !!supabaseAnonKey });
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -17,5 +18,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: "pkce",
   },
 });

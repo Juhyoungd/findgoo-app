@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -11,10 +11,17 @@ import { authStyles as s } from "@/src/components/auth/authStyles";
 export default function LoginScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { session, signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // signIn()이 끝난 직후 바로 router.replace를 부르면, AuthContext의 session 상태가
+  // 아직 갱신되기 전이라 (tabs) 레이아웃의 로그인 가드가 다시 /login으로 되돌려보내는
+  // 경합 상태가 생길 수 있어요. 그래서 session이 실제로 채워지는 걸 보고 이동시킵니다.
+  useEffect(() => {
+    if (session) router.replace("/(tabs)");
+  }, [session, router]);
 
   async function submit() {
     if (!email.trim() || !password.trim()) {
@@ -26,9 +33,7 @@ export default function LoginScreen() {
     setLoading(false);
     if (error) {
       Alert.alert("로그인 실패", error);
-      return;
     }
-    router.replace("/(tabs)");
   }
 
   return (

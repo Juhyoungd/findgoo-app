@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
@@ -9,7 +9,6 @@ import { PostSearchBar } from "@/src/components/market/PostSearchBar";
 import { categories } from "@/src/constants/feature-spec";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
-import { won } from "@/src/utils/format";
 import type { Post } from "@/src/types/findgoo";
 
 // [구매글] 웹의 /buy 페이지: 급구와 분리된 구매글 전용 목록
@@ -30,7 +29,7 @@ export default function BuyScreen() {
   }, [posts, category, query]);
 
   function openPost(post: Post) {
-    Alert.alert(post.title, `${post.description}\n\n희망 가격: ${won(post.price)}`);
+    router.push(`/post/${post.id}`);
   }
 
   return (

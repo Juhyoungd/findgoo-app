@@ -1,11 +1,10 @@
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { PostCard } from "@/src/components/market/PostCard";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
-import { won } from "@/src/utils/format";
 import type { Post } from "@/src/types/findgoo";
 
 export type MyCollectionKind = "buy" | "urgent" | "saved";
@@ -33,8 +32,7 @@ export function MyCollectionScreen({ kind }: { kind: MyCollectionKind }) {
   }
 
   function openPost(post: Post) {
-    const priceLabel = post.type === "buy" ? "희망 가격" : "지원 금액";
-    Alert.alert(post.title, `${post.description}\n\n${priceLabel}: ${won(post.price)}`);
+    router.push(`/post/${post.id}`);
   }
 
   return (

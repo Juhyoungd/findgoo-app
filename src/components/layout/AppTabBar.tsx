@@ -21,7 +21,7 @@ const visibleTabOrder = ["index", "market", "create", "buy", "chat"];
 // [하단 메뉴] 중앙 등록 버튼은 화면 전환 대신 구매글/급구 선택 시트를 부드럽게 올립니다.
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const { palette } = useTheme();
-  const { messages } = useAppData();
+  const { unreadConversationIds } = useAppData();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -33,7 +33,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const focusedNestedRoute = nestedState?.routes?.[nestedState.index ?? nestedState.routes.length - 1];
   if (activeRoute.name === "chat" && focusedNestedRoute && focusedNestedRoute.name !== "index") return null;
 
-  const chatBadge = new Set(messages.map((message) => message.postId)).size;
+  const chatBadge = unreadConversationIds.size;
 
   function openRegisterSheet() {
     setSheetVisible(true);

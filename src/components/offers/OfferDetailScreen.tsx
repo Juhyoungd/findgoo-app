@@ -61,7 +61,9 @@ export function OfferDetailScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="보낸 제안 취소" onPress={() => updateOfferStatus(offer.id, "canceled")} style={[styles.fullButton, { backgroundColor: palette.white, borderColor: palette.line }]}><Text style={{ color: palette.orange, fontWeight: "800" }}>제안 취소</Text></Pressable>
         )}
         {offer.status === "accepted" && (
-          <Pressable accessibilityRole="button" accessibilityLabel="거래 채팅 열기" onPress={() => router.push(`/chat/${offer.postId}`)} style={[styles.fullButton, { backgroundColor: palette.lime, borderColor: palette.lime }]}><Text style={{ color: palette.white, fontWeight: "800" }}>1:1 거래 채팅 열기</Text></Pressable>
+          // 제안은 아직 실제 회원과 연결된 DB 데이터가 아니라서(예시 닉네임), 특정 대화방으로 바로
+          // 못 열고 채팅 목록으로 보냅니다. 제안 기능도 DB로 옮기면 실제 대화방으로 연결할 수 있어요.
+          <Pressable accessibilityRole="button" accessibilityLabel="거래 채팅 열기" onPress={() => router.push("/chat")} style={[styles.fullButton, { backgroundColor: palette.lime, borderColor: palette.lime }]}><Text style={{ color: palette.white, fontWeight: "800" }}>1:1 거래 채팅 열기</Text></Pressable>
         )}
       </ScrollView>
     </SafeAreaView>

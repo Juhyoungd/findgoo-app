@@ -39,7 +39,8 @@ export function MyTransactionsScreen() {
             <View style={[styles.card, { backgroundColor: palette.white, borderColor: palette.line }]}>
               <View style={styles.cardTop}><View style={[styles.avatar, { backgroundColor: palette.blue }]}><Text style={{ color: palette.lime, fontWeight: "900" }}>{item.nickname[0]}</Text></View><View style={{ flex: 1 }}><Text style={[styles.nickname, { color: palette.ink }]}>{item.nickname}</Text><Text style={[styles.direction, { color: palette.muted }]}>{item.direction === "incoming" ? "판매 제안 받음" : "내가 보낸 제안"}</Text></View><Text style={[styles.price, { color: palette.ink }]}>{won(item.price)}</Text></View>
               <Text style={[styles.postTitle, { color: palette.ink }]} numberOfLines={1}>{post?.title ?? "삭제된 게시글"}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={`${item.nickname}님과 거래 채팅 열기`} onPress={() => router.push(`/chat/${item.postId}`)} style={({ pressed }) => [styles.chatButton, { backgroundColor: palette.lime }, pressed && styles.pressed]}><Text style={{ color: palette.white, fontSize: 12, fontWeight: "800" }}>1:1 거래 채팅</Text></Pressable>
+              {/* 제안은 아직 실제 회원과 연결되지 않은 예시 데이터라 채팅 목록으로 보냅니다 */}
+              <Pressable accessibilityRole="button" accessibilityLabel={`${item.nickname}님과 거래 채팅 열기`} onPress={() => router.push("/chat")} style={({ pressed }) => [styles.chatButton, { backgroundColor: palette.lime }, pressed && styles.pressed]}><Text style={{ color: palette.white, fontSize: 12, fontWeight: "800" }}>1:1 거래 채팅</Text></Pressable>
             </View>
           );
         }}

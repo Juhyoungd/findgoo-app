@@ -1,4 +1,4 @@
-import type { AppNotice, ChatMessage, Offer, Post, UserReport } from "@/src/types/findgoo";
+import type { AppNotice, Conversation, Offer, Post, UserReport } from "@/src/types/findgoo";
 import { regionLabels } from "@/src/constants/regions";
 
 // [검색]
@@ -49,11 +49,32 @@ const rawSeedPosts: Post[] = [
 // [대전·세종 샘플] 기존의 다양한 예시 내용은 유지하되 베타 노출 지역은 지원 지역 안에서 순환합니다.
 export const seedPosts: Post[] = rawSeedPosts.map((post, index) => ({ ...post, region: regionLabels[index % regionLabels.length] }));
 
-// [채팅]
-export const seedMessages: ChatMessage[] = [
-  { id:"message-demo-1",postId:"buy-ipad",sender:"partner",text:"제안 확인했어요. 오늘 7시 봉명동 괜찮으세요?",time:"10분 전" },
-  { id:"message-demo-2",postId:"buy-ipad",sender:"me",text:"네, 2번 출구 앞에서 뵐게요.",time:"8분 전" },
-  { id:"message-demo-3",postId:"urgent-line",sender:"partner",text:"제안 수락했습니다. 현장 도착하면 바로 연락드릴게요.",time:"1시간 전" },
+// [채팅] Supabase 환경변수가 없는 로컬 베타 데모에서만 쓰는 대화방 목록
+export const seedConversations: Conversation[] = [
+  {
+    id: "conversation-demo-1",
+    postId: "buy-ipad",
+    postTitle: "아이패드 미니 6세대 셀룰러 구해요",
+    postPrice: 420000,
+    sellerId: "demo-seller",
+    buyerId: "demo-me",
+    counterpartyId: "demo-seller",
+    counterpartyName: "레몬소다",
+    lastMessage: "네, 2번 출구 앞에서 뵐게요.",
+    lastMessageAt: new Date().toISOString(),
+  },
+  {
+    id: "conversation-demo-2",
+    postId: "urgent-line",
+    postTitle: "오늘 6시 둔산 팝업 대기줄 확인해주실 분",
+    postPrice: 18000,
+    sellerId: "demo-me",
+    buyerId: "demo-buyer",
+    counterpartyId: "demo-buyer",
+    counterpartyName: "오후두시",
+    lastMessage: "제안 수락했습니다. 현장 도착하면 바로 연락드릴게요.",
+    lastMessageAt: new Date().toISOString(),
+  },
 ];
 
 // [알림]

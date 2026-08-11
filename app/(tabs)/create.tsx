@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { categories, regions } from "@/src/constants/feature-spec";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
+import { useToast } from "@/src/state/ToastContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import type { PostType } from "@/src/types/findgoo";
 
@@ -17,6 +18,7 @@ export default function CreateScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string }>();
   const { region, addPost } = useAppData();
+  const { showToast } = useToast();
 
   const [type, setType] = useState<PostType>(params.type === "buy" ? "buy" : "urgent");
   const [title, setTitle] = useState("");
@@ -25,33 +27,46 @@ export default function CreateScreen() {
   const [price, setPrice] = useState("");
   const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   function changeType(next: PostType) {
     setType(next);
     setCategory(next === "urgent" ? "심부름" : "디지털");
   }
 
-  function submit() {
+  async function submit() {
     const priceValue = Number(price);
-    if (!title.trim()) return Alert.alert("제목을 입력해주세요");
-    if (!priceValue || priceValue < 1000) return Alert.alert("가격을 1,000원 이상 입력해주세요");
-    if (description.trim().length < 10) return Alert.alert("상세 내용을 10자 이상 입력해주세요");
+    if (!title.trim()) return showToast("제목을 입력해주세요");
+    if (!priceValue || priceValue < 1000) return showToast("가격을 1,000원 이상 입력해주세요");
+    if (description.trim().length < 10) return showToast("상세 내용을 10자 이상 입력해주세요");
 
-    addPost({
-      type,
-      category,
-      title: title.trim(),
-      description: description.trim(),
-      price: priceValue,
-      region: postRegion,
-      deadline: type === "urgent" && deadline.trim() ? deadline.trim() : undefined,
-    });
+    setSubmitting(true);
+    try {
+      const { error } = await addPost({
+        type,
+        category,
+        title: title.trim(),
+        description: description.trim(),
+        price: priceValue,
+        region: postRegion,
+        deadline: type === "urgent" && deadline.trim() ? deadline.trim() : undefined,
+      });
+      if (error) {
+        Alert.alert("등록 실패", error);
+        return;
+      }
+    } catch (err) {
+      Alert.alert("등록 실패", err instanceof Error ? err.message : String(err));
+      return;
+    } finally {
+      setSubmitting(false);
+    }
 
     setTitle("");
     setPrice("");
     setDeadline("");
     setDescription("");
-    Alert.alert("등록 완료", "베타 글이 등록됐어요.");
+    Alert.alert("등록 완료", "글이 등록됐어요.");
     router.push(type === "buy" ? "/buy" : "/market");
   }
 
@@ -136,8 +151,8 @@ export default function CreateScreen() {
             </Text>
           </View>
 
-          <Pressable onPress={submit} style={[styles.submit, { backgroundColor: palette.lime }]}>
-            <Text style={{ color: palette.white, fontWeight: "700", fontSize: 15 }}>글 등록하기</Text>
+          <Pressable onPress={submit} disabled={submitting} style={[styles.submit, { backgroundColor: palette.lime, opacity: submitting ? 0.7 : 1 }]}>
+            {submitting ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "700", fontSize: 15 }}>글 등록하기</Text>}
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

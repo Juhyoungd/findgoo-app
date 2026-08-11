@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
@@ -7,12 +7,15 @@ import { useAuth } from "@/src/state/AuthContext";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
+import { useToast } from "@/src/state/ToastContext";
+import { getAuthErrorMessage, isValidEmail } from "@/src/utils/validation";
 
 // [로그인] Supabase Auth 이메일/비밀번호 로그인. 다른 인증 화면들과 같은 그라데이션 블롭 + 화이트 카드 톤을 재사용
 export default function LoginScreen() {
   const { palette } = useTheme();
   const router = useRouter();
   const { session, isAdmin, signIn } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,16 +29,14 @@ export default function LoginScreen() {
   }, [session, isAdmin, router]);
 
   async function submit() {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("이메일과 비밀번호를 입력해주세요");
-      return;
-    }
+    if (!email.trim()) return showToast("이메일을 입력해주세요.");
+    if (!isValidEmail(email)) return showToast("이메일 주소 형식이 올바르지 않아요.");
+    if (!password) return showToast("비밀번호를 입력해주세요.");
+    if (password.length < 8) return showToast("비밀번호는 8자 이상이어야 해요.");
     setLoading(true);
     const { error } = await signIn(email.trim(), password);
     setLoading(false);
-    if (error) {
-      Alert.alert("로그인 실패", error);
-    }
+    if (error) showToast(getAuthErrorMessage(error, "login"));
   }
 
   return (

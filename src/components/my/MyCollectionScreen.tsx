@@ -1,7 +1,10 @@
-import { Pressable, FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { appIcons } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
+import { BackButton } from "@/src/components/common/BackButton";
 import { PostCard } from "@/src/components/market/PostCard";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
@@ -39,9 +42,7 @@ export function MyCollectionScreen({ kind }: { kind: MyCollectionKind }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <AppHeader />
       <View style={[styles.pageHeader, { borderBottomColor: palette.line }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="마이페이지로 돌아가기" onPress={goBack} style={({ pressed }) => [styles.backButton, { backgroundColor: palette.white, borderColor: palette.line }, pressed && styles.pressed]}>
-          <Text style={[styles.backIcon, { color: palette.ink }]}>‹</Text>
-        </Pressable>
+        <BackButton onPress={goBack} accessibilityLabel="마이페이지로 돌아가기" />
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: palette.lime }]}>{copy.eyebrow}</Text>
           <Text style={[styles.title, { color: palette.ink }]}>{copy.title}</Text>
@@ -66,8 +67,8 @@ export function MyCollectionScreen({ kind }: { kind: MyCollectionKind }) {
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListHeaderComponent={
           <View style={[styles.introCard, { backgroundColor: palette.white, borderColor: palette.line }]}>
-            <View style={[styles.introIcon, { backgroundColor: palette.blue }]}>
-              <Text style={{ color: palette.lime, fontSize: 18, fontWeight: "800" }}>{kind === "buy" ? "⌕" : kind === "urgent" ? "ϟ" : "♥"}</Text>
+            <View style={[styles.introIcon, { backgroundColor: palette.white, borderColor: palette.line }]}>
+              <AppIcon name={kind === "buy" ? appIcons.buy : kind === "urgent" ? appIcons.urgent : appIcons.saved} color={palette.lime} size={19} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.introTitle, { color: palette.ink }]}>{filtered.length}개의 글</Text>
@@ -77,7 +78,7 @@ export function MyCollectionScreen({ kind }: { kind: MyCollectionKind }) {
         }
         ListEmptyComponent={
           <View style={[styles.empty, { backgroundColor: palette.white, borderColor: palette.line }]}>
-            <Text style={[styles.emptyIcon, { color: palette.lime }]}>⌕</Text>
+            <AppIcon name={appIcons.search} color={palette.lime} size={25} />
             <Text style={[styles.emptyTitle, { color: palette.ink }]}>{copy.empty}</Text>
             <Text style={[styles.emptyBody, { color: palette.muted }]}>새 글을 등록하거나 관심 있는 글에 하트를 눌러보세요.</Text>
           </View>
@@ -91,9 +92,6 @@ export function MyCollectionScreen({ kind }: { kind: MyCollectionKind }) {
 
 const styles = StyleSheet.create({
   pageHeader: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 72, paddingHorizontal: 20, borderBottomWidth: 1 },
-  backButton: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  backIcon: { fontSize: 28, lineHeight: 30, marginTop: -2 },
-  pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
   headerCopy: { flex: 1, gap: 2 },
   eyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
   title: { fontSize: 19, fontWeight: "800" },
@@ -101,11 +99,10 @@ const styles = StyleSheet.create({
   countText: { fontSize: 12, fontWeight: "800" },
   listContent: { padding: 20, paddingBottom: 36 },
   introCard: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16 },
-  introIcon: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  introIcon: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   introTitle: { fontSize: 13, fontWeight: "800" },
   description: { fontSize: 10, lineHeight: 15, marginTop: 3 },
   empty: { alignItems: "center", gap: 7, borderWidth: 1, borderStyle: "dashed", borderRadius: 16, paddingHorizontal: 24, paddingVertical: 42 },
-  emptyIcon: { fontSize: 25, fontWeight: "800" },
   emptyTitle: { fontSize: 14, fontWeight: "700" },
   emptyBody: { fontSize: 10, lineHeight: 15, textAlign: "center" },
 });

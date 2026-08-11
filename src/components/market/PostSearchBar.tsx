@@ -1,4 +1,6 @@
 import { StyleSheet, Text, TextInput, View } from "react-native";
+import { appIcons } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
 
@@ -16,7 +18,7 @@ export function PostSearchBar({ query, onChangeQuery, placeholder, resultCount }
   return (
     <View style={styles.wrap}>
       <View style={[styles.bar, { backgroundColor: palette.white, borderColor: query ? palette.lime : palette.line }]}>
-        <Text style={[styles.icon, { color: palette.lime }]}>⌕</Text>
+        <View style={styles.iconWrap}><AppIcon name={appIcons.search} color={palette.muted} size={18} /></View>
         <TextInput
           value={query}
           onChangeText={onChangeQuery}
@@ -27,8 +29,8 @@ export function PostSearchBar({ query, onChangeQuery, placeholder, resultCount }
           style={[styles.input, { color: palette.ink }]}
         />
         {query.length > 0 && (
-          <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => onChangeQuery("")} hitSlop={8}>
-            <Text style={[styles.clear, { color: palette.muted }]}>×</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => onChangeQuery("")} hitSlop={8} style={styles.clearButton}>
+            <AppIcon name={appIcons.close} color={palette.muted} size={12} strokeWidth={1.5} />
           </Pressable>
         )}
       </View>
@@ -39,9 +41,9 @@ export function PostSearchBar({ query, onChangeQuery, placeholder, resultCount }
 
 const styles = StyleSheet.create({
   wrap: { gap: 6, paddingTop: 14 },
-  bar: { height: 48, flexDirection: "row", alignItems: "center", gap: 9, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14 },
-  icon: { fontSize: 17, fontWeight: "800" },
+  bar: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10 },
+  iconWrap: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   input: { flex: 1, fontSize: 13, paddingVertical: 8 },
-  clear: { fontSize: 18, lineHeight: 20 },
+  clearButton: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   count: { fontSize: 10, paddingHorizontal: 2 },
 });

@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { appIcons } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { PostCard } from "@/src/components/market/PostCard";
@@ -62,7 +64,7 @@ export default function MarketScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={{ fontSize: 28 }}>⌕</Text>
+            <View style={[styles.emptyIcon, { borderColor: palette.line }]}><AppIcon name={appIcons.search} color={palette.muted} size={24} /></View>
             <Text style={[styles.emptyTitle, { color: palette.ink }]}>조건에 맞는 글이 없어요</Text>
             <Text style={{ color: palette.muted, fontSize: 12 }}>카테고리를 바꾸거나 첫 글을 올려보세요.</Text>
             <Pressable onPress={() => router.push({ pathname: "/create", params: { type: "urgent" } })} style={[styles.emptyButton, { backgroundColor: palette.ink }]}>
@@ -83,6 +85,7 @@ const styles = StyleSheet.create({
   categoryButton: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   listContent: { paddingHorizontal: 24, paddingBottom: 110 },
   empty: { alignItems: "center", gap: 8, paddingVertical: 60 },
+  emptyIcon: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontWeight: "700" },
   emptyButton: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, marginTop: 6 },
 });

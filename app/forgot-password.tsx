@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useAuth } from "@/src/state/AuthContext";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
+import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
 
@@ -31,9 +32,7 @@ export default function ForgotPasswordScreen() {
     <SafeAreaView style={[s.safe, { backgroundColor: palette.paper }]}>
       <BackgroundBlobs />
       <View style={s.backRow}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={[s.backText, { color: palette.muted }]}>‹ 뒤로</Text>
-        </Pressable>
+        <BackButton onPress={() => router.back()} />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">

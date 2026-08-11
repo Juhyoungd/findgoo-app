@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ScrollView } from "react-native";
+import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
@@ -17,6 +17,8 @@ export default function HomeScreen() {
   const pendingIncomingCount = useMemo(() => offers.filter((offer) => offer.direction === "incoming" && offer.status === "pending").length, [offers]);
   const outgoingPendingCount = useMemo(() => offers.filter((offer) => offer.direction === "outgoing" && offer.status === "pending").length, [offers]);
   const savedCount = useMemo(() => posts.filter((post) => savedPostIds.includes(post.id)).length, [posts, savedPostIds]);
+  const openUrgentCount = useMemo(() => posts.filter((post) => post.type === "urgent" && post.status === "open").length, [posts]);
+  const openBuyCount = useMemo(() => posts.filter((post) => post.type === "buy" && post.status === "open").length, [posts]);
 
   const featuredUrgent = posts.find((post) => post.type === "urgent" && post.status === "open");
   const featuredBuy = posts.find((post) => post.type === "buy" && post.status === "open");
@@ -25,7 +27,7 @@ export default function HomeScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <BackgroundBlobs />
       <AppHeader />
-      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 110 }} keyboardShouldPersistTaps="handled">
+      <View style={{ flex: 1 }}>
         <HomeOverview
           region={region}
           featuredUrgent={featuredUrgent}
@@ -34,6 +36,8 @@ export default function HomeScreen() {
           pendingIncomingCount={pendingIncomingCount}
           outgoingPendingCount={outgoingPendingCount}
           savedCount={savedCount}
+          openUrgentCount={openUrgentCount}
+          openBuyCount={openBuyCount}
           onOpenRegion={() => router.push("/profile/region")}
           onOpenUrgent={() => router.push("/market")}
           onOpenBuy={() => router.push("/buy")}
@@ -43,7 +47,7 @@ export default function HomeScreen() {
           onOpenOutgoingOffers={() => router.push("/offers/sent")}
           onOpenSaved={() => router.push("/my/saved")}
         />
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

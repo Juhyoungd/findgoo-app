@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { BackButton } from "@/src/components/common/BackButton";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
@@ -28,7 +29,7 @@ export function OfferDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <AppHeader />
       <View style={[styles.header, { borderBottomColor: palette.line }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="제안 목록으로 돌아가기" onPress={() => router.back()} hitSlop={8}><Text style={[styles.back, { color: palette.ink }]}>‹</Text></Pressable>
+        <BackButton onPress={() => router.back()} accessibilityLabel="제안 목록으로 돌아가기" />
         <View style={{ flex: 1 }}><Text style={[styles.headerTitle, { color: palette.ink }]}>제안 상세</Text><Text style={[styles.headerSub, { color: palette.muted }]}>{isIncoming ? "받은 제안" : "보낸 제안"}</Text></View>
         <View style={[styles.status, { backgroundColor: offer.status === "pending" ? `${palette.orange}18` : palette.blue }]}><Text style={{ color: offer.status === "pending" ? palette.orange : palette.lime, fontSize: 9, fontWeight: "800" }}>{statusCopy[offer.status]}</Text></View>
       </View>
@@ -73,7 +74,6 @@ export function OfferDetailScreen() {
 const styles = StyleSheet.create({
   missing: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, borderBottomWidth: 1 },
-  back: { fontSize: 30, lineHeight: 32 },
   headerTitle: { fontSize: 17, fontWeight: "800" },
   headerSub: { fontSize: 9, marginTop: 2 },
   status: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6 },

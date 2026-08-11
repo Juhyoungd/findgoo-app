@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, type Href } from "expo-router";
+import { appIcons, type AppIconName } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable } from "@/src/components/common/MotionPressable";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
@@ -26,6 +28,7 @@ const settingMenus: Array<{ icon: string; label: string; caption: string; route:
 ];
 
 const helpMenus: Array<{ icon: string; label: string; caption: string; route: Href }> = [
+  { icon: "✎", label: "기술·개선사항", caption: "오류와 기능 아이디어 보내기", route: "/support/feedback" },
   { icon: "●", label: "공지사항", caption: "운영 소식과 업데이트", route: "/notices" },
   { icon: "?", label: "고객센터", caption: "FAQ와 1:1 문의", route: "/support" },
   { icon: "✓", label: "안전 거래 가이드", caption: "신고·결제 전 체크", route: "/support/safety" },
@@ -70,10 +73,10 @@ export default function MyScreen() {
         </View>
 
         <View style={styles.summaryRow}>
-          <SummaryAction icon="⌕" label="구매글" value={buyPostCount} route="/my/buy" palette={palette} onNavigate={router.push} />
-          <SummaryAction icon="ϟ" label="급구" value={urgentPostCount} route="/my/urgent" palette={palette} onNavigate={router.push} />
-          <SummaryAction icon="♥" label="찜한 글" value={savedPosts.length} route="/my/saved" palette={palette} onNavigate={router.push} />
-          <SummaryAction icon="♧" label="안 읽은 알림" value={unreadNoticeCount} route="/my/notifications" palette={palette} onNavigate={router.push} hasUpdate={unreadNoticeCount > 0} />
+          <SummaryAction icon={appIcons.buy} label="구매글" value={buyPostCount} route="/my/buy" palette={palette} onNavigate={router.push} />
+          <SummaryAction icon={appIcons.urgent} label="급구" value={urgentPostCount} route="/my/urgent" palette={palette} onNavigate={router.push} />
+          <SummaryAction icon={appIcons.saved} label="찜한 글" value={savedPosts.length} route="/my/saved" palette={palette} onNavigate={router.push} />
+          <SummaryAction icon={appIcons.bell} label="안 읽은 알림" value={unreadNoticeCount} route="/my/notifications" palette={palette} onNavigate={router.push} hasUpdate={unreadNoticeCount > 0} />
         </View>
 
         <View style={styles.section}>
@@ -126,11 +129,11 @@ export default function MyScreen() {
   }
 }
 
-function SummaryAction({ icon, label, value, route, palette, onNavigate, hasUpdate = false }: { icon: string; label: string; value: number; route: MySummaryRoute; palette: ReturnType<typeof useTheme>["palette"]; onNavigate: (href: Href) => void; hasUpdate?: boolean }) {
+function SummaryAction({ icon, label, value, route, palette, onNavigate, hasUpdate = false }: { icon: AppIconName; label: string; value: number; route: MySummaryRoute; palette: ReturnType<typeof useTheme>["palette"]; onNavigate: (href: Href) => void; hasUpdate?: boolean }) {
   return (
-    <MotionPressable accessibilityRole="button" accessibilityLabel={`${label} ${value}개${hasUpdate ? ", 새 알림 있음" : ""}`} onPress={() => onNavigate(route)} style={[styles.summaryStat, { backgroundColor: hasUpdate ? `${palette.orange}10` : palette.white, borderColor: hasUpdate ? palette.orange : palette.line }]}>
+    <MotionPressable accessibilityRole="button" accessibilityLabel={`${label} ${value}개${hasUpdate ? ", 새 알림 있음" : ""}`} onPress={() => onNavigate(route)} style={[styles.summaryStat, { backgroundColor: palette.white, borderColor: hasUpdate ? palette.orange : palette.line }]}>
       {hasUpdate && <View style={[styles.newBadge, { backgroundColor: palette.orange }]}><View style={styles.newBadgeDot} /><Text style={styles.newBadgeText}>NEW</Text></View>}
-      <View style={[styles.summaryIcon, { backgroundColor: hasUpdate ? `${palette.orange}18` : palette.paper }]}><Text style={{ color: hasUpdate ? palette.orange : palette.lime, fontSize: 13, fontWeight: "800" }}>{icon}</Text></View>
+      <View style={[styles.summaryIcon, { borderColor: hasUpdate ? `${palette.orange}66` : palette.line }]}><AppIcon name={icon} color={hasUpdate ? palette.orange : palette.muted} size={16} /></View>
       <Text style={[styles.summaryValue, { color: palette.ink }]}>{value}</Text>
       <Text style={{ color: palette.muted, fontSize: 8, fontWeight: "700", textAlign: "center" }}>{label}</Text>
     </MotionPressable>
@@ -146,7 +149,7 @@ const styles = StyleSheet.create({
   editButton: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   summaryRow: { flexDirection: "row", gap: 7 },
   summaryStat: { position: "relative", flex: 1, minHeight: 88, alignItems: "center", justifyContent: "center", gap: 3, borderWidth: 1, borderRadius: 16, paddingHorizontal: 3, paddingVertical: 10 },
-  summaryIcon: { width: 26, height: 26, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 1 },
+  summaryIcon: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", marginBottom: 1 },
   summaryValue: { fontSize: 16, fontWeight: "900" },
   newBadge: { position: "absolute", top: -7, right: -4, flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 3 },
   newBadgeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "white" },

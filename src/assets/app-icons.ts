@@ -1,10 +1,18 @@
 // [하단 메뉴 아이콘]
-// 이미지가 필요 없는 작은 UI 기호를 한 곳에서 관리합니다.
+// 공통 선형 아이콘 컴포넌트에서 사용할 이름을 한 곳에서 관리합니다.
 export const appIcons = {
-  home: "⌂",
-  urgent: "ϟ",
-  buy: "◆",
-  create: "＋",
-  chat: "●",
-  profile: "♙",
+  home: "home",
+  urgent: "urgent",
+  buy: "search",
+  search: "search",
+  create: "create",
+  chat: "chat",
+  bell: "bell",
+  saved: "saved",
+  back: "back",
+  send: "send",
+  close: "close",
+  done: "done",
 } as const;
+
+export type AppIconName = (typeof appIcons)[keyof typeof appIcons];

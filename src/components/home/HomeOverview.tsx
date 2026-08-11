@@ -1,4 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
+import { appIcons, type AppIconName } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
@@ -12,6 +14,8 @@ type HomeOverviewProps = {
   pendingIncomingCount: number;
   outgoingPendingCount: number;
   savedCount: number;
+  openUrgentCount: number;
+  openBuyCount: number;
   onOpenRegion: () => void;
   onOpenUrgent: () => void;
   onOpenBuy: () => void;
@@ -31,6 +35,8 @@ export function HomeOverview({
   pendingIncomingCount,
   outgoingPendingCount,
   savedCount,
+  openUrgentCount,
+  openBuyCount,
   onOpenRegion,
   onOpenUrgent,
   onOpenBuy,
@@ -50,20 +56,24 @@ export function HomeOverview({
         <Text style={{ color: palette.muted, fontSize: 18 }}>›</Text>
       </MotionPressable>
 
-      <View style={[styles.hero, { backgroundColor: palette.ink }]}>
-        <View style={[styles.heroGlow, { backgroundColor: palette.blue }]} />
-        <View style={[styles.betaChip, { backgroundColor: `${palette.white}1a` }]}><Text style={styles.betaText}>대전·세종 BETA</Text></View>
-        <Text style={styles.heroTitle}>필요한 것을 먼저 말하면,{"\n"}동네가 답해줘요.</Text>
-        <Text style={styles.heroBody}>구매 희망과 급한 도움을 둘러보고 제안으로 거래를 시작하세요.</Text>
-      </View>
-
       <View style={styles.sectionHeading}>
         <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>지금 우리 동네</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>마감과 반응이 가까운 글을 골랐어요.</Text></View>
       </View>
 
       <View style={styles.spotlights}>
-        <SpotlightCard label="마감 임박 급구" icon="ϟ" post={featuredUrgent} accent={palette.orange} background={`${palette.orange}10`} onPress={onOpenUrgent} />
-        <SpotlightCard label="새 구매 요청" icon="⌕" post={featuredBuy} accent={palette.lime} background={palette.white} onPress={onOpenBuy} />
+        <SpotlightCard label="마감 임박 급구" icon={appIcons.urgent} post={featuredUrgent} accent={palette.orange} background={`${palette.orange}10`} onPress={onOpenUrgent} />
+        <SpotlightCard label="새 구매 요청" icon={appIcons.buy} post={featuredBuy} accent={palette.lime} background={palette.white} onPress={onOpenBuy} />
+      </View>
+
+      <View style={[styles.neighborhoodPulse, { backgroundColor: palette.white, borderColor: palette.line }]}>
+        <View style={styles.pulseIntro}>
+          <View style={styles.pulseTitleRow}><View style={[styles.liveDot, { backgroundColor: palette.lime }]} /><Text style={[styles.pulseTitle, { color: palette.ink }]}>우리 동네 반응</Text></View>
+          <Text style={[styles.pulseRegion, { color: palette.muted }]} numberOfLines={1}>{region} 기준</Text>
+        </View>
+        <View style={[styles.pulseDivider, { backgroundColor: palette.line }]} />
+        <PulseStat label="급구" value={openUrgentCount} onPress={onOpenUrgent} />
+        <PulseStat label="구매 요청" value={openBuyCount} onPress={onOpenBuy} />
+        <PulseStat label="새 제안" value={pendingIncomingCount} onPress={onOpenIncomingOffers} highlight />
       </View>
 
       <View style={styles.sectionHeading}>
@@ -96,10 +106,19 @@ export function HomeOverview({
     );
   }
 
-  function SpotlightCard({ label, icon, post, accent, background, onPress }: { label: string; icon: string; post?: Post; accent: string; background: string; onPress: () => void }) {
+  function PulseStat({ label, value, onPress, highlight = false }: { label: string; value: number; onPress: () => void; highlight?: boolean }) {
+    return (
+      <MotionPressable onPress={onPress} style={styles.pulseStat} accessibilityLabel={`${label} ${value}개 보기`}>
+        <Text style={[styles.pulseValue, { color: highlight ? palette.orange : palette.ink }]}>{value}</Text>
+        <Text style={[styles.pulseLabel, { color: palette.muted }]}>{label}</Text>
+      </MotionPressable>
+    );
+  }
+
+  function SpotlightCard({ label, icon, post, accent, background, onPress }: { label: string; icon: AppIconName; post?: Post; accent: string; background: string; onPress: () => void }) {
     return (
       <MotionPressable onPress={onPress} style={[styles.spotlight, { backgroundColor: background, borderColor: palette.line }]}>
-        <View style={styles.spotlightLabel}><Text style={{ color: accent, fontWeight: "900" }}>{icon}</Text><Text style={[styles.spotlightEyebrow, { color: accent }]}>{label}</Text></View>
+        <View style={styles.spotlightLabel}><AppIcon name={icon} color={accent} size={14} /><Text style={[styles.spotlightEyebrow, { color: accent }]}>{label}</Text></View>
         <Text style={[styles.spotlightTitle, { color: palette.ink }]} numberOfLines={2}>{post?.title ?? "새 글을 둘러보세요"}</Text>
         <Text style={[styles.spotlightMeta, { color: palette.muted }]} numberOfLines={1}>{post ? `${post.region} · ${won(post.price)}` : "대전·세종 전체"}</Text>
         <View style={[styles.openPill, { backgroundColor: accent }]}><Text style={styles.openText}>둘러보기</Text></View>
@@ -109,35 +128,39 @@ export function HomeOverview({
 }
 
 const styles = StyleSheet.create({
-  overview: { padding: 20, paddingTop: 16, paddingBottom: 28, gap: 16 },
-  regionButton: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 15, padding: 11 },
+  overview: { flex: 1, padding: 16, paddingTop: 12, paddingBottom: 92, gap: 10 },
+  regionButton: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 15, padding: 9 },
   pin: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   regionEyebrow: { fontSize: 8, fontWeight: "800", letterSpacing: 0.5 },
   regionName: { fontSize: 12, fontWeight: "900", marginTop: 2 },
-  hero: { position: "relative", overflow: "hidden", borderRadius: 22, padding: 21, minHeight: 176 },
-  heroGlow: { position: "absolute", right: -42, top: -32, width: 150, height: 150, borderRadius: 75, opacity: 0.42 },
-  betaChip: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
-  betaText: { color: "white", fontSize: 8, fontWeight: "900", letterSpacing: 0.8 },
-  heroTitle: { color: "white", fontSize: 23, lineHeight: 31, fontWeight: "900", letterSpacing: -0.7, marginTop: 16 },
-  heroBody: { color: "rgba(255,255,255,0.64)", fontSize: 10, lineHeight: 16, marginTop: 8, maxWidth: 280 },
   sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 2 },
   sectionTitle: { fontSize: 16, fontWeight: "900" },
   sectionCaption: { fontSize: 10, marginTop: 3 },
   spotlights: { flexDirection: "row", gap: 9 },
-  spotlight: { flex: 1, minHeight: 154, borderWidth: 1, borderRadius: 18, padding: 14 },
+  spotlight: { flex: 1, minHeight: 126, borderWidth: 1, borderRadius: 20, padding: 12 },
   spotlightLabel: { flexDirection: "row", alignItems: "center", gap: 5 },
   spotlightEyebrow: { fontSize: 9, fontWeight: "900" },
-  spotlightTitle: { fontSize: 13, lineHeight: 19, fontWeight: "800", marginTop: 11 },
-  spotlightMeta: { fontSize: 9, marginTop: 6 },
-  openPill: { alignSelf: "flex-start", marginTop: "auto", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6 },
+  spotlightTitle: { minHeight: 38, fontSize: 12.5, lineHeight: 19, fontWeight: "800", marginTop: 9 },
+  spotlightMeta: { minHeight: 12, fontSize: 9, marginTop: 4 },
+  openPill: { alignSelf: "flex-start", marginTop: 8, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   openText: { color: "white", fontSize: 8, fontWeight: "900" },
-  activityGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
-  activityCard: { position: "relative", width: "48.7%", minHeight: 92, borderWidth: 1, borderRadius: 17, padding: 13 },
-  activityIcon: { width: 29, height: 29, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  activityValue: { position: "absolute", right: 14, top: 12, fontSize: 20, fontWeight: "900" },
-  activityLabel: { fontSize: 10, fontWeight: "700", marginTop: 10 },
-  activityArrow: { position: "absolute", right: 11, bottom: 9, fontSize: 15 },
-  guide: { flexDirection: "row", alignItems: "center", gap: 11, borderWidth: 1, borderRadius: 17, padding: 14 },
+  neighborhoodPulse: { minHeight: 64, borderWidth: 1, borderRadius: 17, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
+  pulseIntro: { width: 102 },
+  pulseTitleRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  liveDot: { width: 7, height: 7, borderRadius: 999 },
+  pulseTitle: { fontSize: 11, fontWeight: "900" },
+  pulseRegion: { fontSize: 8, marginTop: 4 },
+  pulseDivider: { width: 1, height: 34 },
+  pulseStat: { flex: 1, minHeight: 50, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  pulseValue: { fontSize: 15, fontWeight: "900" },
+  pulseLabel: { fontSize: 8, fontWeight: "700", marginTop: 2 },
+  activityGrid: { flexDirection: "row", gap: 7 },
+  activityCard: { position: "relative", flex: 1, minHeight: 74, borderWidth: 1, borderRadius: 15, padding: 9 },
+  activityIcon: { width: 24, height: 24, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  activityValue: { position: "absolute", right: 9, top: 8, fontSize: 16, fontWeight: "900" },
+  activityLabel: { fontSize: 8, fontWeight: "700", marginTop: 9 },
+  activityArrow: { position: "absolute", right: 8, bottom: 6, fontSize: 12 },
+  guide: { flexDirection: "row", alignItems: "center", gap: 11, borderWidth: 1, borderRadius: 17, padding: 11 },
   guideIcon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   guideTitle: { fontSize: 12, fontWeight: "900" },
   guideBody: { fontSize: 9, marginTop: 3 },

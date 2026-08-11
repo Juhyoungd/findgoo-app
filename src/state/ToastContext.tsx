@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { appIcons } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
 
@@ -12,6 +14,7 @@ type ToastContextValue = {
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+const useNativeDriver = Platform.OS !== "web";
 
 // [토스트/알림] Alert.alert가 웹에서 놓치기 쉬운 짧은 안내(입력 검증 등)는 화면 하단 토스트로,
 // 새 채팅 메시지처럼 다른 화면에 있어도 바로 알려줘야 하는 건 화면 상단 알림 배너로 보여줍니다.
@@ -29,9 +32,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       if (toastTimer.current) clearTimeout(toastTimer.current);
       setMessage(next);
       toastOpacity.setValue(0);
-      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+      Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver }).start();
       toastTimer.current = setTimeout(() => {
-        Animated.timing(toastOpacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setMessage(null));
+        Animated.timing(toastOpacity, { toValue: 0, duration: 220, useNativeDriver }).start(() => setMessage(null));
       }, 2200);
     },
     [toastOpacity],
@@ -39,7 +42,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const dismissNotification = useCallback(() => {
     if (notificationTimer.current) clearTimeout(notificationTimer.current);
-    Animated.timing(notificationY, { toValue: -120, duration: 200, useNativeDriver: true }).start(() => setNotification(null));
+    Animated.timing(notificationY, { toValue: -120, duration: 200, useNativeDriver }).start(() => setNotification(null));
   }, [notificationY]);
 
   const showNotification = useCallback(
@@ -47,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       if (notificationTimer.current) clearTimeout(notificationTimer.current);
       setNotification(next);
       notificationY.setValue(-120);
-      Animated.spring(notificationY, { toValue: 0, speed: 16, bounciness: 4, useNativeDriver: true }).start();
+      Animated.spring(notificationY, { toValue: 0, speed: 16, bounciness: 4, useNativeDriver }).start();
       notificationTimer.current = setTimeout(dismissNotification, 3500);
     },
     [notificationY, dismissNotification],
@@ -66,7 +69,7 @@ function ToastBanner({ message, opacity }: { message: string; opacity: Animated.
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
   return (
-    <Animated.View pointerEvents="none" style={[styles.toastWrap, { opacity, bottom: insets.bottom + 90 }]}>
+    <Animated.View style={[styles.toastWrap, { opacity, bottom: insets.bottom + 90, pointerEvents: "none" }]}>
       <Animated.View style={[styles.bubble, { backgroundColor: palette.ink }]}>
         <Text style={styles.toastText}>{message}</Text>
       </Animated.View>
@@ -84,7 +87,7 @@ function NotificationBanner({ notification, translateY, onDismiss }: { notificat
   }
 
   return (
-    <Animated.View pointerEvents="box-none" style={[styles.notificationWrap, { top: insets.top + 8, transform: [{ translateY }] }]}>
+    <Animated.View style={[styles.notificationWrap, { top: insets.top + 8, transform: [{ translateY }], pointerEvents: "box-none" }]}>
       <Pressable
         haptic="light"
         onPress={handlePress}
@@ -92,8 +95,8 @@ function NotificationBanner({ notification, translateY, onDismiss }: { notificat
         accessibilityRole="button"
         accessibilityLabel={`${notification.title} 알림, ${notification.body}`}
       >
-        <View style={[styles.notificationIcon, { backgroundColor: palette.blue }]}>
-          <Text style={{ color: palette.lime, fontWeight: "900" }}>●</Text>
+        <View style={[styles.notificationIcon, { borderColor: palette.line }]}>
+          <AppIcon name={appIcons.bell} color={palette.ink} size={18} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.notificationTitle, { color: palette.ink }]} numberOfLines={1}>{notification.title}</Text>
@@ -114,15 +117,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    shadowColor: "#271f30",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 10,
+    borderRadius: 22,
+    padding: 12,
+    elevation: 7,
+    ...Platform.select({
+      web: { boxShadow: "0 8px 20px rgba(39,31,48,0.1)" },
+      default: { shadowColor: "#271f30", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 20 },
+    }),
   },
-  notificationIcon: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  notificationIcon: { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   notificationTitle: { fontSize: 13, fontWeight: "800" },
 });
 

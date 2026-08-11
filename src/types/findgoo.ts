@@ -6,6 +6,7 @@ export type BottomNavKey = "home" | "urgent" | "create" | "chat" | "my";
 
 export type Post = {
   id: string;
+  authorId?: string;
   type: PostType;
   category: string;
   title: string;
@@ -49,11 +50,24 @@ export type UserReport = {
 
 export type ChatMessage = {
   id: string;
-  postId: string;
-  sender: "me" | "partner";
+  conversationId: string;
+  senderId: string;
   text: string;
   time: string;
-  imageUrl?: string;
+  mine: boolean;
+};
+
+export type Conversation = {
+  id: string;
+  postId: string;
+  postTitle: string;
+  postPrice: number;
+  sellerId: string;
+  buyerId: string;
+  counterpartyId: string;
+  counterpartyName: string;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
 };
 
 export type AppNotice = {

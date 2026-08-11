@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppDataProvider } from "@/src/state/AppDataContext";
 import { AuthProvider } from "@/src/state/AuthContext";
+import { ToastProvider } from "@/src/state/ToastContext";
 import { ThemeProvider } from "@/src/theme/ThemeContext";
 
 export default function RootLayout() {
@@ -12,12 +13,14 @@ export default function RootLayout() {
       <View style={styles.desktopCanvas}>
         <View style={styles.appFrame}>
           <ThemeProvider>
-            <AuthProvider>
-              <AppDataProvider>
-                <StatusBar style="auto" />
-                <Stack screenOptions={{ headerShown: false }} />
-              </AppDataProvider>
-            </AuthProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <AppDataProvider>
+                  <StatusBar style="auto" />
+                  <Stack screenOptions={{ headerShown: false }} />
+                </AppDataProvider>
+              </AuthProvider>
+            </ToastProvider>
           </ThemeProvider>
         </View>
       </View>

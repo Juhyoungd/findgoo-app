@@ -1,26 +1,25 @@
-import { useMemo } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { AppHeader } from "@/src/components/layout/AppHeader";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
+import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
-import type { Post } from "@/src/types/findgoo";
+import { timeAgo, won } from "@/src/utils/format";
+import type { Conversation } from "@/src/types/findgoo";
 
-// [1:1 거래 채팅 목록] 메시지가 오간 글 기준으로 채팅방을 모아 보여줍니다.
+// [1:1 거래 채팅 목록] 내가 참여 중인 대화방을 최근 메시지 순으로 보여줍니다.
 export default function ChatListScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { posts, messages } = useAppData();
+  const { conversations, unreadConversationIds } = useAppData();
 
-  const chatPosts = useMemo(() => {
-    const postIds = new Set(messages.map((message) => message.postId));
-    return posts.filter((post) => postIds.has(post.id));
-  }, [posts, messages]);
+  function preview(conversation: Conversation) {
+    return conversation.lastMessage ?? "대화를 시작해보세요.";
+  }
 
-  function lastMessage(post: Post) {
-    return [...messages].reverse().find((message) => message.postId === post.id)?.text ?? "거래 채팅을 시작하세요.";
+  function subtitle(conversation: Conversation) {
+    return conversation.lastMessageAt ? timeAgo(conversation.lastMessageAt) : "";
   }
 
   return (
@@ -28,31 +27,45 @@ export default function ChatListScreen() {
       <AppHeader />
       <Text style={[styles.heading, { color: palette.ink }]}>1:1 거래 채팅</Text>
       <View style={[styles.note, { backgroundColor: palette.blue }]}>
-        <Text style={{ color: palette.ink, fontSize: 12 }}>거래가 성사된 상대만 표시돼요. 제안 단계에서는 채팅이 열리지 않습니다.</Text>
+        <Text style={{ color: palette.ink, fontSize: 12 }}>글에 관심 있는 상대와 1:1로 대화할 수 있어요.</Text>
       </View>
       <FlatList
-        data={chatPosts}
-        keyExtractor={(post) => post.id}
+        data={conversations}
+        keyExtractor={(conversation) => conversation.id}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/chat/${item.id}`)} style={[styles.row, { backgroundColor: palette.white, borderColor: palette.line }]}>
-            <View style={[styles.avatar, { backgroundColor: palette.blue }]}>
-              <Text style={{ color: palette.lime, fontWeight: "700" }}>{(item.mine ? "상" : item.author)[0]}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: palette.ink }]}>{item.mine ? "거래 상대" : item.author}</Text>
-              <Text style={{ color: palette.muted, fontSize: 11 }} numberOfLines={1}>{item.title}</Text>
-              <Text style={{ color: palette.muted, fontSize: 11, marginTop: 4 }} numberOfLines={1}>{lastMessage(item)}</Text>
-            </View>
-            <Text style={{ color: palette.muted, fontSize: 16 }}>›</Text>
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const unread = unreadConversationIds.has(item.id);
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${item.counterpartyName}님과의 채팅${unread ? ", 안 읽은 메시지 있음" : ""}`}
+              onPress={() => router.push(`/chat/${item.id}`)}
+              style={[styles.row, { backgroundColor: unread ? `${palette.orange}0d` : palette.white, borderColor: unread ? palette.orange : palette.line }]}
+            >
+              <View>
+                <View style={[styles.avatar, { backgroundColor: palette.blue }]}>
+                  <Text style={{ color: palette.lime, fontWeight: "700" }}>{item.counterpartyName[0]}</Text>
+                </View>
+                {unread && <View style={[styles.unreadDot, { backgroundColor: palette.orange, borderColor: palette.white }]} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.rowTop}>
+                  <Text style={[styles.rowTitle, { color: palette.ink }]}>{item.counterpartyName}</Text>
+                  <Text style={{ color: unread ? palette.orange : palette.muted, fontSize: 9, fontWeight: unread ? "800" : "400" }}>{subtitle(item)}</Text>
+                </View>
+                <Text style={{ color: palette.muted, fontSize: 11 }} numberOfLines={1}>{item.postTitle} · {won(item.postPrice)}</Text>
+                <Text style={{ color: unread ? palette.ink : palette.muted, fontSize: 11, fontWeight: unread ? "700" : "400", marginTop: 4 }} numberOfLines={1}>{preview(item)}</Text>
+              </View>
+              <Text style={{ color: palette.muted, fontSize: 16 }}>›</Text>
+            </Pressable>
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={{ fontSize: 26 }}>●</Text>
-            <Text style={[styles.emptyTitle, { color: palette.ink }]}>열린 거래 채팅이 없어요</Text>
-            <Text style={{ color: palette.muted, fontSize: 12, textAlign: "center" }}>제안이 선택되어 거래가 성사되면{"\n"}이곳에 1:1 채팅방이 생깁니다.</Text>
+            <Text style={[styles.emptyTitle, { color: palette.ink }]}>열린 채팅이 없어요</Text>
+            <Text style={{ color: palette.muted, fontSize: 12, textAlign: "center" }}>관심 있는 글의 상세 화면에서{"\n"}"채팅하기"를 누르면 대화방이 열려요.</Text>
           </View>
         }
       />
@@ -65,7 +78,9 @@ const styles = StyleSheet.create({
   note: { marginHorizontal: 24, marginTop: 14, borderRadius: 10, padding: 12 },
   listContent: { padding: 24, paddingBottom: 110 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 14, padding: 14 },
+  rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  unreadDot: { position: "absolute", top: -2, right: -2, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
   rowTitle: { fontSize: 14, fontWeight: "700" },
   empty: { alignItems: "center", gap: 8, paddingVertical: 60 },
   emptyTitle: { fontWeight: "700" },

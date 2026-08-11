@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
@@ -14,12 +15,25 @@ export function PostDetailScreen() {
   const { palette } = useTheme();
   const router = useRouter();
   const { postId } = useLocalSearchParams<{ postId: string }>();
-  const { posts, savedPostIds, toggleSaved } = useAppData();
+  const { posts, savedPostIds, toggleSaved, startOrGetConversation } = useAppData();
   const post = posts.find((item) => item.id === postId);
+  const [openingChat, setOpeningChat] = useState(false);
 
   function goBack() {
     if (router.canGoBack()) router.back();
     else router.replace("/");
+  }
+
+  async function openChat() {
+    if (!post) return;
+    setOpeningChat(true);
+    const { conversationId, error } = await startOrGetConversation(post);
+    setOpeningChat(false);
+    if (error || !conversationId) {
+      Alert.alert("채팅 시작 실패", error ?? "잠시 후 다시 시도해주세요.");
+      return;
+    }
+    router.push(`/chat/${conversationId}`);
   }
 
   if (!post) {
@@ -94,10 +108,11 @@ export function PostDetailScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="1:1 채팅 열기"
-            onPress={() => router.push(`/chat/${post.id}`)}
-            style={[styles.chatButton, { backgroundColor: palette.lime }]}
+            onPress={openChat}
+            disabled={openingChat}
+            style={[styles.chatButton, { backgroundColor: palette.lime, opacity: openingChat ? 0.7 : 1 }]}
           >
-            <Text style={{ color: palette.white, fontWeight: "800", fontSize: 15 }}>채팅하기</Text>
+            {openingChat ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "800", fontSize: 15 }}>채팅하기</Text>}
           </Pressable>
         )}
       </ScrollView>

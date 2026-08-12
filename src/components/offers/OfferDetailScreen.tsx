@@ -1,8 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { BackButton } from "@/src/components/common/BackButton";
+import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
@@ -18,12 +20,35 @@ export function OfferDetailScreen() {
   const { offers, posts, updateOfferStatus } = useAppData();
   const offer = offers.find((candidate) => candidate.id === offerId);
   const post = posts.find((candidate) => candidate.id === offer?.postId);
+  const [processing, setProcessing] = useState(false);
 
   if (!offer) {
     return <SafeAreaView style={[styles.missing, { backgroundColor: palette.paper }]}><Text style={{ color: palette.muted }}>제안을 찾을 수 없어요.</Text></SafeAreaView>;
   }
 
   const isIncoming = offer.direction === "incoming";
+
+  async function openTradeChat() {
+    if (!offer!.offererId || !isSupabaseConfigured) {
+      router.push("/chat");
+      return;
+    }
+    const { data } = await supabase.from("conversations").select("id").eq("post_id", offer!.postId).eq("buyer_id", offer!.offererId).maybeSingle();
+    router.push(data ? `/chat/${data.id}` : "/chat");
+  }
+
+  async function respond(status: Offer["status"]) {
+    if (processing) return;
+    setProcessing(true);
+    const { error } = await updateOfferStatus(offer!.id, status);
+    if (error) {
+      setProcessing(false);
+      Alert.alert("처리 실패", error);
+      return;
+    }
+    if (status === "accepted") await openTradeChat();
+    setProcessing(false);
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
@@ -54,17 +79,15 @@ export function OfferDetailScreen() {
 
         {offer.status === "pending" && isIncoming && (
           <View style={styles.actionRow}>
-            <Pressable accessibilityRole="button" accessibilityLabel="제안 거절" onPress={() => updateOfferStatus(offer.id, "rejected")} style={[styles.secondaryButton, { backgroundColor: palette.white, borderColor: palette.line }]}><Text style={{ color: palette.muted, fontWeight: "700" }}>거절</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="제안 수락" onPress={() => updateOfferStatus(offer.id, "accepted")} style={[styles.primaryButton, { backgroundColor: palette.lime }]}><Text style={{ color: palette.white, fontWeight: "800" }}>수락하고 채팅 열기</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="제안 거절" disabled={processing} onPress={() => respond("rejected")} style={[styles.secondaryButton, { backgroundColor: palette.white, borderColor: palette.line, opacity: processing ? 0.7 : 1 }]}><Text style={{ color: palette.muted, fontWeight: "700" }}>거절</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="제안 수락" disabled={processing} onPress={() => respond("accepted")} style={[styles.primaryButton, { backgroundColor: palette.lime, opacity: processing ? 0.7 : 1 }]}>{processing ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "800" }}>수락하고 채팅 열기</Text>}</Pressable>
           </View>
         )}
         {offer.status === "pending" && !isIncoming && (
-          <Pressable accessibilityRole="button" accessibilityLabel="보낸 제안 취소" onPress={() => updateOfferStatus(offer.id, "canceled")} style={[styles.fullButton, { backgroundColor: palette.white, borderColor: palette.line }]}><Text style={{ color: palette.orange, fontWeight: "800" }}>제안 취소</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="보낸 제안 취소" disabled={processing} onPress={() => respond("canceled")} style={[styles.fullButton, { backgroundColor: palette.white, borderColor: palette.line, opacity: processing ? 0.7 : 1 }]}><Text style={{ color: palette.orange, fontWeight: "800" }}>제안 취소</Text></Pressable>
         )}
         {offer.status === "accepted" && (
-          // 제안은 아직 실제 회원과 연결된 DB 데이터가 아니라서(예시 닉네임), 특정 대화방으로 바로
-          // 못 열고 채팅 목록으로 보냅니다. 제안 기능도 DB로 옮기면 실제 대화방으로 연결할 수 있어요.
-          <Pressable accessibilityRole="button" accessibilityLabel="거래 채팅 열기" onPress={() => router.push("/chat")} style={[styles.fullButton, { backgroundColor: palette.lime, borderColor: palette.lime }]}><Text style={{ color: palette.white, fontWeight: "800" }}>1:1 거래 채팅 열기</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="거래 채팅 열기" onPress={openTradeChat} style={[styles.fullButton, { backgroundColor: palette.lime, borderColor: palette.lime }]}><Text style={{ color: palette.white, fontWeight: "800" }}>1:1 거래 채팅 열기</Text></Pressable>
         )}
       </ScrollView>
     </SafeAreaView>

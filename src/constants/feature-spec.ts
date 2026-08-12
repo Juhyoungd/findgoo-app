@@ -79,6 +79,7 @@ export const seedConversations: Conversation[] = [
     buyerId: "demo-me",
     counterpartyId: "demo-seller",
     counterpartyName: "레몬소다",
+    counterpartyLastReadAt: new Date().toISOString(),
     lastMessage: "네, 2번 출구 앞에서 뵐게요.",
     lastMessageAt: new Date().toISOString(),
   },
@@ -91,23 +92,28 @@ export const seedConversations: Conversation[] = [
     buyerId: "demo-buyer",
     counterpartyId: "demo-buyer",
     counterpartyName: "오후두시",
+    counterpartyLastReadAt: null,
     lastMessage: "제안 수락했습니다. 현장 도착하면 바로 연락드릴게요.",
     lastMessageAt: new Date().toISOString(),
   },
 ];
 
 // [알림]
+function minutesAgo(minutes: number) {
+  return new Date(Date.now() - minutes * 60000).toISOString();
+}
+
 export const seedNotices: AppNotice[] = [
-  { id:"notice-offer",kind:"offer",title:"새 지원자가 있어요",body:"동네러너님이 급구 글에 24,000원을 제안했어요.",time:"12분 전",read:false,postId:"my-queue",target:{type:"offer",offerId:"offer-in-queue"} },
-  { id:"notice-keyword",kind:"keyword",title:"'아이패드' 새 글",body:"대전 도룡동에 조건과 맞는 구매글이 올라왔어요.",time:"28분 전",read:false,postId:"buy-ipad",target:{type:"post",postId:"buy-ipad"} },
-  { id:"notice-urgent",kind:"urgent",title:"내 지역 마감 임박 급구",body:"대전 궁동 팝업 대기줄 확인 미션이 곧 마감돼요.",time:"35분 전",read:true,postId:"urgent-line",target:{type:"post",postId:"urgent-line"} },
-  { id:"notice-chat",kind:"chat",title:"새 채팅 메시지",body:"레몬소다님이 거래 장소를 제안했어요.",time:"47분 전",read:false,postId:"buy-ipad",target:{type:"chat",conversationId:"conversation-demo-1"} },
-  { id:"notice-trade",kind:"trade",title:"거래 일정 확인",body:"오늘 오후 7시 봉명동 거래 일정이 있어요.",time:"1시간 전",read:false,postId:"buy-ipad",target:{type:"transactions"} },
-  { id:"notice-favorite",kind:"favorite",title:"찜한 급구 마감 임박",body:"강아지 산책 급구가 2시간 뒤 마감돼요.",time:"2시간 전",read:true,postId:"urgent-dog",target:{type:"post",postId:"urgent-dog"} },
-  { id:"notice-sejong",kind:"keyword",title:"'세종 케이크' 새 글",body:"나성동에서 관심 키워드와 일치하는 급구가 올라왔어요.",time:"3시간 전",read:false,postId:"my-sejong-cake",target:{type:"post",postId:"my-sejong-cake"} },
-  { id:"notice-system",kind:"system",title:"대전·세종 지역 설정 안내",body:"활동 지역을 최대 3곳까지 선택할 수 있어요.",time:"어제",read:true,target:{type:"region"} },
-  { id:"notice-offer-accepted",kind:"offer",title:"보낸 제안이 수락됐어요",body:"팝업 대기줄 확인 미션의 1:1 채팅이 열렸어요.",time:"어제",read:true,postId:"urgent-line",target:{type:"chat",conversationId:"conversation-demo-2"} },
-  { id:"notice-review",kind:"trade",title:"거래 후기를 남겨주세요",body:"완료한 대리구매 거래의 후기를 작성하면 신뢰도에 반영돼요.",time:"2일 전",read:true,postId:"urgent-gift",target:{type:"post",postId:"urgent-gift"} },
+  { id:"notice-offer",kind:"offer",title:"새 지원자가 있어요",body:"동네러너님이 급구 글에 24,000원을 제안했어요.",time:"12분 전",createdAt:minutesAgo(12),read:false,postId:"my-queue",target:{type:"offer",offerId:"offer-in-queue"} },
+  { id:"notice-keyword",kind:"keyword",title:"'아이패드' 새 글",body:"대전 도룡동에 조건과 맞는 구매글이 올라왔어요.",time:"28분 전",createdAt:minutesAgo(28),read:false,postId:"buy-ipad",target:{type:"post",postId:"buy-ipad"} },
+  { id:"notice-urgent",kind:"urgent",title:"내 지역 마감 임박 급구",body:"대전 궁동 팝업 대기줄 확인 미션이 곧 마감돼요.",time:"35분 전",createdAt:minutesAgo(35),read:true,postId:"urgent-line",target:{type:"post",postId:"urgent-line"} },
+  { id:"notice-chat",kind:"chat",title:"새 채팅 메시지",body:"레몬소다님이 거래 장소를 제안했어요.",time:"47분 전",createdAt:minutesAgo(47),read:false,postId:"buy-ipad",target:{type:"chat",conversationId:"conversation-demo-1"} },
+  { id:"notice-trade",kind:"trade",title:"거래 일정 확인",body:"오늘 오후 7시 봉명동 거래 일정이 있어요.",time:"1시간 전",createdAt:minutesAgo(60),read:false,postId:"buy-ipad",target:{type:"transactions"} },
+  { id:"notice-favorite",kind:"favorite",title:"찜한 급구 마감 임박",body:"강아지 산책 급구가 2시간 뒤 마감돼요.",time:"2시간 전",createdAt:minutesAgo(120),read:true,postId:"urgent-dog",target:{type:"post",postId:"urgent-dog"} },
+  { id:"notice-sejong",kind:"keyword",title:"'세종 케이크' 새 글",body:"나성동에서 관심 키워드와 일치하는 급구가 올라왔어요.",time:"3시간 전",createdAt:minutesAgo(180),read:false,postId:"my-sejong-cake",target:{type:"post",postId:"my-sejong-cake"} },
+  { id:"notice-system",kind:"system",title:"대전·세종 지역 설정 안내",body:"활동 지역을 최대 3곳까지 선택할 수 있어요.",time:"어제",createdAt:minutesAgo(1440),read:true,target:{type:"region"} },
+  { id:"notice-offer-accepted",kind:"offer",title:"보낸 제안이 수락됐어요",body:"팝업 대기줄 확인 미션의 1:1 채팅이 열렸어요.",time:"어제",createdAt:minutesAgo(1440),read:true,postId:"urgent-line",target:{type:"chat",conversationId:"conversation-demo-2"} },
+  { id:"notice-review",kind:"trade",title:"거래 후기를 남겨주세요",body:"완료한 대리구매 거래의 후기를 작성하면 신뢰도에 반영돼요.",time:"2일 전",createdAt:minutesAgo(2880),read:true,postId:"urgent-gift",target:{type:"post",postId:"urgent-gift"} },
 ];
 
 // [판매 제안] 홈의 받은 제안·보낸 제안과 상세 화면에서 함께 사용하는 예시 데이터

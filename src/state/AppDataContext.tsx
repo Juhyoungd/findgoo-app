@@ -24,6 +24,12 @@ type NewReportInput = {
   detail: string;
 };
 
+type NewOfferInput = {
+  postId: string;
+  price: number;
+  message: string;
+};
+
 // [DB 행 → 화면 타입] posts 테이블의 한 행을, 화면들이 원래 쓰던 Post 모양으로 바꿔줍니다.
 type PostRow = {
   id: string;
@@ -70,6 +76,8 @@ type ConversationRow = {
   post_id: string;
   seller_id: string;
   buyer_id: string;
+  seller_last_read_at: string | null;
+  buyer_last_read_at: string | null;
   last_message: string | null;
   last_message_at: string | null;
   created_at: string;
@@ -78,6 +86,7 @@ type ConversationRow = {
 
 function mapConversationRow(row: ConversationRow, myId: string, profileNames: Map<string, string>): Conversation {
   const counterpartyId = row.seller_id === myId ? row.buyer_id : row.seller_id;
+  const counterpartyLastReadAt = row.seller_id === myId ? row.buyer_last_read_at : row.seller_last_read_at;
   return {
     id: row.id,
     postId: row.post_id,
@@ -85,6 +94,7 @@ function mapConversationRow(row: ConversationRow, myId: string, profileNames: Ma
     postPrice: row.post?.price ?? 0,
     sellerId: row.seller_id,
     buyerId: row.buyer_id,
+    counterpartyLastReadAt,
     counterpartyId,
     counterpartyName: profileNames.get(counterpartyId) ?? "상대방",
     lastMessage: row.last_message,
@@ -93,6 +103,91 @@ function mapConversationRow(row: ConversationRow, myId: string, profileNames: Ma
 }
 
 type MessageRow = { id: string; conversation_id: string; sender_id: string; text: string; created_at: string };
+
+// [DB 행 → 화면 타입] offers/reports/notices 테이블의 한 행을 화면이 쓰는 모양으로 바꿔줍니다.
+type OfferRow = {
+  id: string;
+  post_id: string;
+  offerer_id: string;
+  offerer_nickname: string;
+  price: number;
+  message: string;
+  status: Offer["status"];
+  created_at: string;
+};
+
+function mapOfferRow(row: OfferRow, myId: string): Offer {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    offererId: row.offerer_id,
+    nickname: row.offerer_nickname,
+    price: row.price,
+    message: row.message,
+    direction: row.offerer_id === myId ? "outgoing" : "incoming",
+    status: row.status,
+    created: timeAgo(row.created_at),
+  };
+}
+
+type ReportRow = {
+  id: string;
+  post_id: string;
+  reporter_name: string;
+  reported_user: string;
+  reason: ReportReason;
+  detail: string;
+  status: ReportStatus;
+  created_at: string;
+};
+
+function mapReportRow(row: ReportRow): UserReport {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    reporter: row.reporter_name,
+    reportedUser: row.reported_user,
+    reason: row.reason,
+    detail: row.detail,
+    created: timeAgo(row.created_at),
+    status: row.status,
+  };
+}
+
+type NoticeRow = {
+  id: string;
+  kind: AppNotice["kind"];
+  title: string;
+  body: string;
+  read: boolean;
+  target_type: "post" | "offer" | "chat" | "transactions" | "region";
+  target_id: string | null;
+  created_at: string;
+};
+
+function mapNoticeRow(row: NoticeRow): AppNotice {
+  const target: AppNotice["target"] =
+    row.target_type === "post" && row.target_id
+      ? { type: "post", postId: row.target_id }
+      : row.target_type === "offer" && row.target_id
+        ? { type: "offer", offerId: row.target_id }
+        : row.target_type === "chat" && row.target_id
+          ? { type: "chat", conversationId: row.target_id }
+          : row.target_type === "region"
+            ? { type: "region" }
+            : { type: "transactions" };
+
+  return {
+    id: row.id,
+    kind: row.kind,
+    title: row.title,
+    body: row.body,
+    time: timeAgo(row.created_at),
+    createdAt: row.created_at,
+    read: row.read,
+    target,
+  };
+}
 
 type AppDataContextValue = {
   nickname: string;
@@ -106,22 +201,24 @@ type AppDataContextValue = {
   conversations: Conversation[];
   startOrGetConversation: (post: Post) => Promise<{ conversationId: string | null; error: string | null }>;
   unreadConversationIds: Set<string>;
+  activeConversationId: string | null;
   setActiveConversationId: (conversationId: string | null) => void;
   offers: Offer[];
-  updateOfferStatus: (offerId: string, status: Offer["status"]) => void;
+  addOffer: (input: NewOfferInput) => Promise<{ error: string | null }>;
+  updateOfferStatus: (offerId: string, status: Offer["status"]) => Promise<{ error: string | null }>;
   reports: UserReport[];
-  addReport: (input: NewReportInput) => void;
-  updateReportStatus: (reportId: string, status: ReportStatus) => void;
+  addReport: (input: NewReportInput) => Promise<{ error: string | null }>;
+  updateReportStatus: (reportId: string, status: ReportStatus) => Promise<{ error: string | null }>;
   notices: AppNotice[];
   markNoticeRead: (noticeId: string) => void;
+  markAllNoticesRead: () => void;
   unreadNoticeCount: number;
 };
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
-// [기기 상태] 게시글/찜/대화방은 Supabase와 연결돼 여러 사용자가 같은 데이터를 봅니다.
+// [기기 상태] 게시글/찜/대화방/제안/신고/알림 모두 Supabase와 연결돼 여러 사용자가 같은 데이터를 봅니다.
 // 채팅 메시지 자체는 대화방 화면에서 그때그때 불러와요(전역에 다 들고 있지 않음).
-// 제안·신고·알림은 아직 DB로 옮기기 전이라 메모리 상태만으로 화면끼리 공유합니다.
 // Supabase 환경변수가 없는 로컬 베타에서는 그대로 시드 데이터로 동작합니다.
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { session, profile } = useAuth();
@@ -132,9 +229,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([profile?.region || "대전 유성구 봉명동"]);
   const [conversations, setConversations] = useState<Conversation[]>(isSupabaseConfigured ? [] : seedConversations);
   const [unreadConversationIds, setUnreadConversationIds] = useState<Set<string>>(new Set());
-  const [offers, setOffers] = useState<Offer[]>(seedOffers);
-  const [reports, setReports] = useState<UserReport[]>(seedReports);
-  const [notices, setNotices] = useState<AppNotice[]>(seedNotices);
+  const [offers, setOffers] = useState<Offer[]>(isSupabaseConfigured ? [] : seedOffers);
+  const [reports, setReports] = useState<UserReport[]>(isSupabaseConfigured ? [] : seedReports);
+  const [notices, setNotices] = useState<AppNotice[]>(isSupabaseConfigured ? [] : seedNotices);
 
   const myUserId = session?.user.id;
 
@@ -146,8 +243,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     conversationsRef.current = conversations;
   }, [conversations]);
 
+  // 지금 어떤 대화방이 열려 있는지는 하단 탭바가 채팅방 화면에서 자기 자신을 숨길 때도 씁니다
+  // (네비게이션 상태를 직접 들여다보는 것보다 이 값이 더 안정적이에요).
+  const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
+
   const setActiveConversationId = useCallback((conversationId: string | null) => {
     activeConversationIdRef.current = conversationId;
+    setActiveConversationIdState(conversationId);
     if (conversationId) {
       setUnreadConversationIds((ids) => {
         if (!ids.has(conversationId)) return ids;
@@ -275,6 +377,115 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     };
   }, [session, showNotification, router]);
 
+  // [제안 불러오기] 내가 받은(글쓴이) 또는 보낸(제안자) 제안을 모두 가져오고,
+  // 새 제안·상태 변경을 실시간으로 반영합니다.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session) return;
+    const myId = session.user.id;
+    let cancelled = false;
+
+    supabase
+      .from("offers")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        setOffers((data as OfferRow[]).map((row) => mapOfferRow(row, myId)));
+      });
+
+    const channel = supabase
+      .channel("offers-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "offers" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const oldRow = payload.old as OfferRow;
+          setOffers((items) => items.filter((offer) => offer.id !== oldRow.id));
+          return;
+        }
+        const row = payload.new as OfferRow;
+        const mapped = mapOfferRow(row, myId);
+        setOffers((items) => (items.some((offer) => offer.id === mapped.id) ? items.map((offer) => (offer.id === mapped.id ? mapped : offer)) : [mapped, ...items]));
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
+  // [신고 불러오기] 본인이 접수한 신고(관리자라면 전체 신고, RLS가 알아서 걸러줍니다)
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session) return;
+    let cancelled = false;
+
+    supabase
+      .from("reports")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        setReports((data as ReportRow[]).map(mapReportRow));
+      });
+
+    const channel = supabase
+      .channel("reports-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const oldRow = payload.old as ReportRow;
+          setReports((items) => items.filter((report) => report.id !== oldRow.id));
+          return;
+        }
+        const mapped = mapReportRow(payload.new as ReportRow);
+        setReports((items) => (items.some((report) => report.id === mapped.id) ? items.map((report) => (report.id === mapped.id ? mapped : report)) : [mapped, ...items]));
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
+  // [알림함 불러오기] 내 알림만 가져오고, 새 알림은 실시간으로 목록 맨 위에 추가합니다.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session) return;
+    const myId = session.user.id;
+    let cancelled = false;
+
+    supabase
+      .from("notices")
+      .select("*")
+      .eq("user_id", myId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        setNotices((data as NoticeRow[]).map(mapNoticeRow));
+      });
+
+    const channel = supabase
+      .channel("notices-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notices", filter: `user_id=eq.${myId}` }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const oldRow = payload.old as NoticeRow;
+          setNotices((items) => items.filter((notice) => notice.id !== oldRow.id));
+          return;
+        }
+        const mapped = mapNoticeRow(payload.new as NoticeRow);
+        setNotices((items) =>
+          items.some((notice) => notice.id === mapped.id)
+            ? items.map((notice) => (notice.id === mapped.id ? mapped : notice))
+            : [mapped, ...items],
+        );
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [session]);
+
   const addPost = useCallback(
     async (input: NewPostInput) => {
       const authorName = profile?.nickname || profile?.name || "회원";
@@ -392,33 +603,113 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [session, conversations],
   );
 
-  const updateOfferStatus = useCallback((offerId: string, status: Offer["status"]) => {
-    setOffers((items) => items.map((offer) => (offer.id === offerId ? { ...offer, status } : offer)));
-  }, []);
+  // [제안하기] 게시글에 가격·메시지를 담아 제안을 등록합니다.
+  const addOffer = useCallback(
+    async (input: NewOfferInput) => {
+      const nickname = profile?.nickname || profile?.name || "회원";
 
-  const addReport = useCallback(
-    (input: NewReportInput) => {
-      setReports((items) => [
-        {
-          id: uid(),
-          ...input,
-          reporter: profile?.nickname || profile?.name || "회원",
-          created: "방금 전",
-          status: "pending",
-        },
-        ...items,
-      ]);
+      if (!isSupabaseConfigured || !session) {
+        const offer: Offer = { id: uid(), postId: input.postId, nickname, price: input.price, message: input.message, direction: "outgoing", status: "pending", created: "방금 전" };
+        setOffers((items) => [offer, ...items]);
+        return { error: null };
+      }
+
+      const { data, error } = await supabase
+        .from("offers")
+        .insert({ post_id: input.postId, offerer_id: session.user.id, offerer_nickname: nickname, price: input.price, message: input.message })
+        .select("*")
+        .single();
+
+      if (error || !data) return { error: error?.message ?? "제안을 보내지 못했어요." };
+      setOffers((items) => [mapOfferRow(data as OfferRow, session.user.id), ...items]);
+      return { error: null };
     },
-    [profile],
+    [profile, session],
   );
 
-  const updateReportStatus = useCallback((reportId: string, status: ReportStatus) => {
-    setReports((items) => items.map((report) => (report.id === reportId ? { ...report, status } : report)));
-  }, []);
+  const updateOfferStatus = useCallback(
+    async (offerId: string, status: Offer["status"]) => {
+      setOffers((items) => items.map((offer) => (offer.id === offerId ? { ...offer, status } : offer)));
+      if (!isSupabaseConfigured || !session) return { error: null };
 
-  const markNoticeRead = useCallback((noticeId: string) => {
-    setNotices((items) => items.map((notice) => (notice.id === noticeId ? { ...notice, read: true } : notice)));
-  }, []);
+      // 수락은 대화방 자동 생성까지 함께 처리하는 RPC를 통해서만 해요 (판매자는 conversations를
+      // 직접 insert할 권한이 없어서, 서버 쪽 함수가 대신 만들어줍니다).
+      if (status === "accepted") {
+        const { error } = await supabase.rpc("accept_offer", { p_offer_id: offerId });
+        return { error: error?.message ?? null };
+      }
+
+      const { error } = await supabase.from("offers").update({ status }).eq("id", offerId);
+      return { error: error?.message ?? null };
+    },
+    [session],
+  );
+
+  const addReport = useCallback(
+    async (input: NewReportInput) => {
+      const reporterName = profile?.nickname || profile?.name || "회원";
+
+      if (!isSupabaseConfigured || !session) {
+        setReports((items) => [{ id: uid(), ...input, reporter: reporterName, created: "방금 전", status: "pending" }, ...items]);
+        return { error: null };
+      }
+
+      const { data, error } = await supabase
+        .from("reports")
+        .insert({ post_id: input.postId, reporter_id: session.user.id, reporter_name: reporterName, reported_user: input.reportedUser, reason: input.reason, detail: input.detail })
+        .select("*")
+        .single();
+
+      if (error || !data) return { error: error?.message ?? "신고를 접수하지 못했어요." };
+      setReports((items) => [mapReportRow(data as ReportRow), ...items]);
+      return { error: null };
+    },
+    [profile, session],
+  );
+
+  const updateReportStatus = useCallback(
+    async (reportId: string, status: ReportStatus) => {
+      setReports((items) => items.map((report) => (report.id === reportId ? { ...report, status } : report)));
+      if (!isSupabaseConfigured || !session) return { error: null };
+      const { error } = await supabase.from("reports").update({ status }).eq("id", reportId);
+      return { error: error?.message ?? null };
+    },
+    [session],
+  );
+
+  const markNoticeRead = useCallback(
+    (noticeId: string) => {
+      setNotices((items) => items.map((notice) => (notice.id === noticeId ? { ...notice, read: true } : notice)));
+      if (!isSupabaseConfigured || !session) return;
+      supabase
+        .from("notices")
+        .update({ read: true })
+        .eq("id", noticeId)
+        .then(({ error }) => {
+          if (error) console.log("[notices] 읽음 처리 실패", error.message);
+        });
+    },
+    [session],
+  );
+
+  // [전체 알림 화면 진입] 헤더의 알림 숫자는 "안 읽은 개수"가 아니라 "전체 알림 화면을 아직 안
+  // 열어봤는지"를 뜻하도록, 그 화면을 열면 그 시점까지 온 알림을 한 번에 읽음 처리합니다.
+  const markAllNoticesRead = useCallback(() => {
+    setNotices((items) => {
+      const unreadIds = items.filter((notice) => !notice.read).map((notice) => notice.id);
+      if (unreadIds.length === 0) return items;
+      if (isSupabaseConfigured && session) {
+        supabase
+          .from("notices")
+          .update({ read: true })
+          .in("id", unreadIds)
+          .then(({ error }) => {
+            if (error) console.log("[notices] 전체 읽음 처리 실패", error.message);
+          });
+      }
+      return items.map((notice) => (notice.read ? notice : { ...notice, read: true }));
+    });
+  }, [session]);
 
   const unreadNoticeCount = useMemo(() => notices.filter((notice) => !notice.read).length, [notices]);
 
@@ -435,14 +726,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       conversations,
       startOrGetConversation,
       unreadConversationIds,
+      activeConversationId,
       setActiveConversationId,
       offers,
+      addOffer,
       updateOfferStatus,
       reports,
       addReport,
       updateReportStatus,
       notices,
       markNoticeRead,
+      markAllNoticesRead,
       unreadNoticeCount,
     }),
     [
@@ -455,14 +749,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       conversations,
       startOrGetConversation,
       unreadConversationIds,
+      activeConversationId,
       setActiveConversationId,
       offers,
+      addOffer,
       updateOfferStatus,
       reports,
       addReport,
       updateReportStatus,
       notices,
       markNoticeRead,
+      markAllNoticesRead,
       unreadNoticeCount,
     ],
   );

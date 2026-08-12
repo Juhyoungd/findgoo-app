@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { BackButton } from "@/src/components/common/BackButton";
@@ -19,13 +19,20 @@ export default function ReportUserScreen() {
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [detail, setDetail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const post = posts.find((candidate) => candidate.id === postId);
   const counterparty = post ? (post.mine ? "거래 상대" : post.author) : "거래 상대";
 
-  function submit() {
-    if (!reason || !post) return;
-    addReport({ postId: post.id, reportedUser: counterparty, reason, detail: detail.trim() || "추가 설명 없음" });
-    setSubmitted(true);
+  async function submit() {
+    if (!reason || !post || submitting) return;
+    try {
+      setSubmitting(true);
+      const { error } = await addReport({ postId: post.id, reportedUser: counterparty, reason, detail: detail.trim() || "추가 설명 없음" });
+      if (error) return Alert.alert("신고 접수 실패", error);
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (!post) {
@@ -71,7 +78,7 @@ export default function ReportUserScreen() {
           </View>
 
           <View style={[styles.guide, { backgroundColor: palette.blue }]}><Text style={[styles.guideText, { color: palette.ink }]}>허위 신고는 서비스 이용 제한 사유가 될 수 있어요. 접수된 내용은 관리자 신고 관리 화면에 전달됩니다.</Text></View>
-          <Pressable accessibilityRole="button" accessibilityLabel="신고 접수하기" disabled={!reason} onPress={submit} style={[styles.submit, { backgroundColor: reason ? palette.orange : palette.line }]}><Text style={{ color: palette.white, fontWeight: "900" }}>신고 접수하기</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="신고 접수하기" disabled={!reason || submitting} onPress={submit} style={[styles.submit, { backgroundColor: reason ? palette.orange : palette.line, opacity: submitting ? 0.7 : 1 }]}>{submitting ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "900" }}>신고 접수하기</Text>}</Pressable>
         </ScrollView>
       )}
     </SafeAreaView>

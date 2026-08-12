@@ -26,6 +26,7 @@ export type Post = {
 export type Offer = {
   id: string;
   postId: string;
+  offererId?: string;
   nickname: string;
   price: number;
   message: string;
@@ -54,6 +55,7 @@ export type ChatMessage = {
   senderId: string;
   text: string;
   time: string;
+  createdAt: string;
   mine: boolean;
 };
 
@@ -66,6 +68,7 @@ export type Conversation = {
   buyerId: string;
   counterpartyId: string;
   counterpartyName: string;
+  counterpartyLastReadAt: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
 };
@@ -76,6 +79,7 @@ export type AppNotice = {
   title: string;
   body: string;
   time: string;
+  createdAt: string;
   read: boolean;
   postId?: string;
   target:

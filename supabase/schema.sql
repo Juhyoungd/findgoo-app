@@ -175,3 +175,254 @@ create trigger on_message_created
 
 alter publication supabase_realtime add table public.conversations;
 alter publication supabase_realtime add table public.messages;
+
+-- ============================================================
+-- 알림함 (notices) — 아래 offers/reports 트리거들이 여기에 행을 씁니다.
+-- ============================================================
+-- 알림은 항상 트리거(security definer)를 통해서만 만들어지고, 회원이 직접
+-- insert하지 못하게 합니다. 본인 알림 조회/읽음 처리만 허용해요.
+
+create table public.notices (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null check (kind in ('offer', 'trade', 'chat', 'favorite', 'keyword', 'urgent', 'system')),
+  title text not null,
+  body text not null,
+  read boolean not null default false,
+  target_type text not null check (target_type in ('post', 'offer', 'chat', 'transactions', 'region')),
+  target_id uuid,
+  created_at timestamptz not null default now()
+);
+
+alter table public.notices enable row level security;
+
+create policy "본인 알림만 조회" on public.notices
+  for select using (auth.uid() = user_id);
+
+create policy "본인 알림만 읽음 처리" on public.notices
+  for update using (auth.uid() = user_id);
+
+alter publication supabase_realtime add table public.notices;
+
+-- ============================================================
+-- 제안 (offers)
+-- ============================================================
+-- 게시글 하나에 여러 사람이 가격/조건을 제안할 수 있어요. 글쓴이(판매자)는
+-- 수락·거절, 제안자는 취소만 할 수 있습니다.
+
+create table public.offers (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.posts (id) on delete cascade,
+  offerer_id uuid not null references auth.users (id) on delete cascade,
+  offerer_nickname text not null,
+  price integer not null,
+  message text not null,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'canceled')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.offers enable row level security;
+
+create policy "offers select policy" on public.offers
+  for select using (
+    auth.uid() = offerer_id
+    or exists (select 1 from public.posts p where p.id = offers.post_id and p.author_id = auth.uid())
+    or (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  );
+
+create policy "offers insert policy" on public.offers
+  for insert with check (auth.uid() = offerer_id);
+
+create policy "offers update policy" on public.offers
+  for update using (
+    auth.uid() = offerer_id
+    or exists (select 1 from public.posts p where p.id = offers.post_id and p.author_id = auth.uid())
+  );
+
+alter publication supabase_realtime add table public.offers;
+
+-- 새 제안이 오면 글의 offer_count를 올리고, 글쓴이에게 알림을 남깁니다.
+create function public.handle_new_offer()
+returns trigger as $$
+declare
+  v_post_author uuid;
+  v_post_title text;
+begin
+  select author_id, title into v_post_author, v_post_title from public.posts where id = new.post_id;
+  update public.posts set offer_count = offer_count + 1 where id = new.post_id;
+
+  if v_post_author is not null and v_post_author <> new.offerer_id then
+    insert into public.notices (user_id, kind, title, body, target_type, target_id)
+    values (v_post_author, 'offer', '새 제안이 도착했어요', new.offerer_nickname || ' 님이 "' || coalesce(v_post_title, '내 글') || '"에 제안했어요', 'offer', new.id);
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger on_offer_created
+  after insert on public.offers
+  for each row execute procedure public.handle_new_offer();
+
+-- 제안 상태가 바뀌면(수락/거절) 제안자에게 알림을 남깁니다.
+create function public.handle_offer_status_change()
+returns trigger as $$
+declare
+  v_title text;
+  v_body text;
+begin
+  if new.status = old.status then return new; end if;
+  if new.status = 'accepted' then
+    v_title := '제안이 수락됐어요';
+    v_body := '보낸 제안이 수락됐어요. 채팅으로 거래를 이어가세요.';
+  elsif new.status = 'rejected' then
+    v_title := '제안이 거절됐어요';
+    v_body := '보낸 제안이 거절됐어요.';
+  else
+    return new;
+  end if;
+
+  insert into public.notices (user_id, kind, title, body, target_type, target_id)
+  values (new.offerer_id, 'trade', v_title, v_body, 'offer', new.id);
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger on_offer_status_changed
+  after update on public.offers
+  for each row execute procedure public.handle_offer_status_change();
+
+-- 제안이 수락되면 해당 글+제안자 대화방이 없을 때 자동으로 만들어줍니다.
+-- (판매자는 conversations를 직접 insert할 권한이 없어서, 이 함수가 security
+-- definer로 대신 만들어줘요. 이미 대화 중이었다면 그 방을 그대로 둡니다.)
+create function public.accept_offer(p_offer_id uuid)
+returns void as $$
+declare
+  v_post_id uuid;
+  v_offerer_id uuid;
+  v_seller_id uuid;
+begin
+  select post_id, offerer_id into v_post_id, v_offerer_id from public.offers where id = p_offer_id;
+  select author_id into v_seller_id from public.posts where id = v_post_id;
+
+  if v_seller_id is null or v_seller_id <> auth.uid() then
+    raise exception '이 제안을 수락할 권한이 없어요.';
+  end if;
+
+  update public.offers set status = 'accepted' where id = p_offer_id;
+
+  insert into public.conversations (post_id, seller_id, buyer_id)
+  values (v_post_id, v_seller_id, v_offerer_id)
+  on conflict (post_id, buyer_id) do nothing;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- ============================================================
+-- 신고 (reports)
+-- ============================================================
+
+create table public.reports (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.posts (id) on delete cascade,
+  reporter_id uuid not null references auth.users (id) on delete cascade,
+  reporter_name text not null,
+  reported_user text not null,
+  reason text not null,
+  detail text not null,
+  status text not null default 'pending' check (status in ('pending', 'reviewing', 'resolved')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.reports enable row level security;
+
+create policy "reports select policy" on public.reports
+  for select using (
+    auth.uid() = reporter_id
+    or (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  );
+
+create policy "reports insert policy" on public.reports
+  for insert with check (auth.uid() = reporter_id);
+
+create policy "reports update policy" on public.reports
+  for update using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+alter publication supabase_realtime add table public.reports;
+
+-- 신고 처리 상태가 바뀌면 신고자에게 알림을 남깁니다.
+create function public.handle_report_status_change()
+returns trigger as $$
+declare
+  v_body text;
+begin
+  if new.status = old.status then return new; end if;
+  if new.status = 'reviewing' then v_body := '신고 내용을 검토하고 있어요.';
+  elsif new.status = 'resolved' then v_body := '신고 처리가 완료됐어요.';
+  else return new; end if;
+
+  insert into public.notices (user_id, kind, title, body, target_type)
+  values (new.reporter_id, 'system', '신고 처리 소식', new.reason || ' 신고 건: ' || v_body, 'transactions');
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger on_report_status_changed
+  after update on public.reports
+  for each row execute procedure public.handle_report_status_change();
+
+-- 새 채팅 메시지가 오면 상대방에게 알림함에도 남겨서, 채팅 탭이 아니어도
+-- 마이페이지 알림 목록에서 확인할 수 있게 합니다.
+create function public.handle_new_message_notice()
+returns trigger as $$
+declare
+  v_seller_id uuid;
+  v_buyer_id uuid;
+  v_recipient_id uuid;
+  v_sender_name text;
+begin
+  select seller_id, buyer_id into v_seller_id, v_buyer_id from public.conversations where id = new.conversation_id;
+  v_recipient_id := case when new.sender_id = v_seller_id then v_buyer_id else v_seller_id end;
+
+  select coalesce(nickname, name, '상대방') into v_sender_name from public.profiles where id = new.sender_id;
+
+  insert into public.notices (user_id, kind, title, body, target_type, target_id)
+  values (v_recipient_id, 'chat', v_sender_name || ' 님', left(new.text, 80), 'chat', new.conversation_id);
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger on_message_created_notice
+  after insert on public.messages
+  for each row execute procedure public.handle_new_message_notice();
+
+-- ============================================================
+-- 읽음 표시 (read receipts)
+-- ============================================================
+-- 메시지마다 읽음 여부를 저장하지 않고, 대화방 참여자별로 "내가 마지막으로 읽은 시각"만
+-- 저장해요. 상대가 보낸 메시지 중 이 시각 이후에 온 것만 "안 읽음"으로 취급하면 됩니다.
+-- (슬랙 등에서 흔히 쓰는 방식이라, 메시지가 아무리 쌓여도 매번 여러 행을 갱신할 필요가 없어요.)
+
+alter table public.conversations
+  add column seller_last_read_at timestamptz,
+  add column buyer_last_read_at timestamptz;
+
+-- 참여자 본인 쪽 last_read_at만 갱신합니다. conversations에는 update RLS 정책이 따로
+-- 없어서(글쓴이 알림 트리거만 security definer로 건드렸어요), 이 함수가 대신 검증하고 갱신해요.
+-- 대화방을 읽었으면 그 대화방을 가리키는 채팅 알림도 같이 읽음 처리합니다(알림함까지 안 가도 됨).
+create or replace function public.mark_conversation_read(p_conversation_id uuid)
+returns void as $$
+begin
+  update public.conversations
+  set
+    seller_last_read_at = case when seller_id = auth.uid() then now() else seller_last_read_at end,
+    buyer_last_read_at = case when buyer_id = auth.uid() then now() else buyer_last_read_at end
+  where id = p_conversation_id
+    and (seller_id = auth.uid() or buyer_id = auth.uid());
+
+  update public.notices
+  set read = true
+  where user_id = auth.uid()
+    and target_type = 'chat'
+    and target_id = p_conversation_id
+    and read = false;
+end;
+$$ language plpgsql security definer set search_path = public;

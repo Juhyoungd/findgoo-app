@@ -132,7 +132,7 @@ export function HomeOverview({
 }
 
 const styles = StyleSheet.create({
-  overview: { flex: 1, padding: 16, paddingTop: 12, paddingBottom: 92, justifyContent: "space-between" },
+  overview: { flex: 1, padding: 16, paddingTop: 12, paddingBottom: 112, justifyContent: "space-between" },
   block: { gap: 10 },
   regionButton: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 15, padding: 9 },
   pin: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center" },

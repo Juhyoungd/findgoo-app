@@ -3,9 +3,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { BackButton } from "@/src/components/common/BackButton";
+import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
+import type { Offer } from "@/src/types/findgoo";
 
 // [진행 중 거래] 홈에서 최근 채팅 대신 제공하는 실제 거래 중심 바로가기
 export function MyTransactionsScreen() {
@@ -17,6 +19,15 @@ export function MyTransactionsScreen() {
   function goBack() {
     if (router.canGoBack()) router.back();
     else router.replace("/");
+  }
+
+  async function openTradeChat(offer: Offer) {
+    if (!offer.offererId || !isSupabaseConfigured) {
+      router.push("/chat");
+      return;
+    }
+    const { data } = await supabase.from("conversations").select("id").eq("post_id", offer.postId).eq("buyer_id", offer.offererId).maybeSingle();
+    router.push(data ? `/chat/${data.id}` : "/chat");
   }
 
   return (
@@ -40,8 +51,7 @@ export function MyTransactionsScreen() {
             <View style={[styles.card, { backgroundColor: palette.white, borderColor: palette.line }]}>
               <View style={styles.cardTop}><View style={[styles.avatar, { backgroundColor: palette.blue }]}><Text style={{ color: palette.lime, fontWeight: "900" }}>{item.nickname[0]}</Text></View><View style={{ flex: 1 }}><Text style={[styles.nickname, { color: palette.ink }]}>{item.nickname}</Text><Text style={[styles.direction, { color: palette.muted }]}>{item.direction === "incoming" ? "판매 제안 받음" : "내가 보낸 제안"}</Text></View><Text style={[styles.price, { color: palette.ink }]}>{won(item.price)}</Text></View>
               <Text style={[styles.postTitle, { color: palette.ink }]} numberOfLines={1}>{post?.title ?? "삭제된 게시글"}</Text>
-              {/* 제안은 아직 실제 회원과 연결되지 않은 예시 데이터라 채팅 목록으로 보냅니다 */}
-              <Pressable accessibilityRole="button" accessibilityLabel={`${item.nickname}님과 거래 채팅 열기`} onPress={() => router.push("/chat")} style={({ pressed }) => [styles.chatButton, { backgroundColor: palette.lime }, pressed && styles.pressed]}><Text style={{ color: palette.white, fontSize: 12, fontWeight: "800" }}>1:1 거래 채팅</Text></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`${item.nickname}님과 거래 채팅 열기`} onPress={() => openTradeChat(item)} style={({ pressed }) => [styles.chatButton, { backgroundColor: palette.lime }, pressed && styles.pressed]}><Text style={{ color: palette.white, fontSize: 12, fontWeight: "800" }}>1:1 거래 채팅</Text></Pressable>
             </View>
           );
         }}

@@ -23,17 +23,18 @@ const useNativeDriver = Platform.OS !== "web";
 // [하단 메뉴] 중앙 등록 버튼은 화면 전환 대신 구매글/급구 선택 시트를 부드럽게 올립니다.
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const { palette } = useTheme();
-  const { unreadConversationIds } = useAppData();
+  const { unreadConversationIds, activeConversationId } = useAppData();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [sheetVisible, setSheetVisible] = useState(false);
   const sheetY = useRef(new Animated.Value(360)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
+  // 채팅방 화면(app/(tabs)/chat/[conversationId].tsx)이 열려있는 동안은 activeConversationId가
+  // 채워져요. 중첩 네비게이션 state를 직접 들여다보는 방식은 기기별로 값이 늦게 채워지거나
+  // 모양이 달라서 탭바가 안 숨겨지는 경우가 있었어요 — 이 값이 훨씬 안정적입니다.
   const activeRoute = state.routes[state.index];
-  const nestedState = activeRoute.state as { index?: number; routes?: { name: string }[] } | undefined;
-  const focusedNestedRoute = nestedState?.routes?.[nestedState.index ?? nestedState.routes.length - 1];
-  if (activeRoute.name === "chat" && focusedNestedRoute && focusedNestedRoute.name !== "index") return null;
+  if (activeRoute.name === "chat" && activeConversationId) return null;
 
   const chatBadge = unreadConversationIds.size;
 

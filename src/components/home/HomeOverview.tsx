@@ -56,35 +56,39 @@ export function HomeOverview({
         <Text style={{ color: palette.muted, fontSize: 18 }}>›</Text>
       </MotionPressable>
 
-      <View style={styles.sectionHeading}>
-        <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>지금 우리 동네</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>마감과 반응이 가까운 글을 골랐어요.</Text></View>
-      </View>
-
-      <View style={styles.spotlights}>
-        <SpotlightCard label="마감 임박 급구" icon={appIcons.urgent} post={featuredUrgent} accent={palette.orange} background={`${palette.orange}10`} onPress={onOpenUrgent} />
-        <SpotlightCard label="새 구매 요청" icon={appIcons.buy} post={featuredBuy} accent={palette.lime} background={palette.white} onPress={onOpenBuy} />
-      </View>
-
-      <View style={[styles.neighborhoodPulse, { backgroundColor: palette.white, borderColor: palette.line }]}>
-        <View style={styles.pulseIntro}>
-          <View style={styles.pulseTitleRow}><View style={[styles.liveDot, { backgroundColor: palette.lime }]} /><Text style={[styles.pulseTitle, { color: palette.ink }]}>우리 동네 반응</Text></View>
-          <Text style={[styles.pulseRegion, { color: palette.muted }]} numberOfLines={1}>{region} 기준</Text>
+      <View style={styles.block}>
+        <View style={styles.sectionHeading}>
+          <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>지금 우리 동네</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>마감과 반응이 가까운 글을 골랐어요.</Text></View>
         </View>
-        <View style={[styles.pulseDivider, { backgroundColor: palette.line }]} />
-        <PulseStat label="급구" value={openUrgentCount} onPress={onOpenUrgent} />
-        <PulseStat label="구매 요청" value={openBuyCount} onPress={onOpenBuy} />
-        <PulseStat label="새 제안" value={pendingIncomingCount} onPress={onOpenIncomingOffers} highlight />
+
+        <View style={styles.spotlights}>
+          <SpotlightCard label="마감 임박 급구" icon={appIcons.urgent} post={featuredUrgent} accent={palette.orange} background={`${palette.orange}10`} onPress={onOpenUrgent} />
+          <SpotlightCard label="새 구매 요청" icon={appIcons.buy} post={featuredBuy} accent={palette.lime} background={palette.white} onPress={onOpenBuy} />
+        </View>
+
+        <View style={[styles.neighborhoodPulse, { backgroundColor: palette.white, borderColor: palette.line }]}>
+          <View style={styles.pulseIntro}>
+            <View style={styles.pulseTitleRow}><View style={[styles.liveDot, { backgroundColor: palette.lime }]} /><Text style={[styles.pulseTitle, { color: palette.ink }]}>우리 동네 반응</Text></View>
+            <Text style={[styles.pulseRegion, { color: palette.muted }]} numberOfLines={1}>{region} 기준</Text>
+          </View>
+          <View style={[styles.pulseDivider, { backgroundColor: palette.line }]} />
+          <PulseStat label="급구" value={openUrgentCount} onPress={onOpenUrgent} />
+          <PulseStat label="구매 요청" value={openBuyCount} onPress={onOpenBuy} />
+          <PulseStat label="새 제안" value={pendingIncomingCount} onPress={onOpenIncomingOffers} highlight />
+        </View>
       </View>
 
-      <View style={styles.sectionHeading}>
-        <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>내 거래 활동</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>확인이 필요한 순서대로 모았어요.</Text></View>
-      </View>
+      <View style={styles.block}>
+        <View style={styles.sectionHeading}>
+          <View><Text style={[styles.sectionTitle, { color: palette.ink }]}>내 거래 활동</Text><Text style={[styles.sectionCaption, { color: palette.muted }]}>확인이 필요한 순서대로 모았어요.</Text></View>
+        </View>
 
-      <View style={styles.activityGrid}>
-        <ActivityCard label="진행 중 거래" value={activeTradeCount} icon="✓" onPress={onOpenActiveTrades} />
-        <ActivityCard label="받은 제안" value={pendingIncomingCount} icon="↓" highlight onPress={onOpenIncomingOffers} />
-        <ActivityCard label="보낸 제안" value={outgoingPendingCount} icon="↑" onPress={onOpenOutgoingOffers} />
-        <ActivityCard label="찜한 글" value={savedCount} icon="♥" onPress={onOpenSaved} />
+        <View style={styles.activityGrid}>
+          <ActivityCard label="진행 중 거래" value={activeTradeCount} icon="✓" onPress={onOpenActiveTrades} />
+          <ActivityCard label="받은 제안" value={pendingIncomingCount} icon="↓" highlight onPress={onOpenIncomingOffers} />
+          <ActivityCard label="보낸 제안" value={outgoingPendingCount} icon="↑" onPress={onOpenOutgoingOffers} />
+          <ActivityCard label="찜한 글" value={savedCount} icon="♥" onPress={onOpenSaved} />
+        </View>
       </View>
 
       <MotionPressable onPress={onOpenSafety} style={[styles.guide, { backgroundColor: palette.blue, borderColor: `${palette.lime}22` }]} accessibilityLabel="안전 거래 가이드 열기">
@@ -128,7 +132,8 @@ export function HomeOverview({
 }
 
 const styles = StyleSheet.create({
-  overview: { flex: 1, padding: 16, paddingTop: 12, paddingBottom: 92, gap: 10 },
+  overview: { flex: 1, padding: 16, paddingTop: 12, paddingBottom: 92, justifyContent: "space-between" },
+  block: { gap: 10 },
   regionButton: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 15, padding: 9 },
   pin: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   regionEyebrow: { fontSize: 8, fontWeight: "800", letterSpacing: 0.5 },

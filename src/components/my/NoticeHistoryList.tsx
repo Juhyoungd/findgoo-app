@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { appIcons, type AppIconName } from "@/src/assets/app-icons";
@@ -5,6 +6,12 @@ import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
 import type { AppNotice } from "@/src/types/findgoo";
+
+const RECENT_WINDOW_MS = 60_000;
+
+function isRecent(notice: AppNotice) {
+  return Date.now() - new Date(notice.createdAt).getTime() < RECENT_WINDOW_MS;
+}
 
 const noticeIcon: Record<AppNotice["kind"], AppIconName> = {
   offer: appIcons.send,
@@ -26,6 +33,14 @@ type NoticeHistoryListProps = {
 export function NoticeHistoryList({ notices, onRead, compact = false }: NoticeHistoryListProps) {
   const { palette } = useTheme();
   const router = useRouter();
+
+  // "방금 전(1분 이내)" 뱃지가 시간이 지나면 화면을 새로고침하지 않아도 저절로 사라지도록,
+  // 주기적으로 다시 그리게 합니다.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => forceTick((tick) => tick + 1), 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   function openNotice(notice: AppNotice) {
     onRead(notice.id);
@@ -79,7 +94,7 @@ export function NoticeHistoryList({ notices, onRead, compact = false }: NoticeHi
             <Text style={[styles.body, { color: palette.muted }]} numberOfLines={compact ? 1 : 2}>{notice.body}</Text>
           </View>
           <View style={styles.rightSide}>
-            {!notice.read && (
+            {isRecent(notice) && (
               <View style={styles.unreadWrap}>
                 <View style={[styles.unreadDot, { backgroundColor: palette.orange }]} />
                 <Text style={[styles.unreadText, { color: palette.orange }]}>NEW</Text>

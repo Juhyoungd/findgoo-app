@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
+import { useToast } from "@/src/state/ToastContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
 
@@ -15,10 +16,16 @@ const statusLabel = { open: "거래 가능", reserved: "진행 중", closed: "�
 export function PostDetailScreen() {
   const { palette } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { postId } = useLocalSearchParams<{ postId: string }>();
-  const { posts, savedPostIds, toggleSaved, startOrGetConversation } = useAppData();
+  const { posts, savedPostIds, toggleSaved, startOrGetConversation, addOffer } = useAppData();
+  const { showToast } = useToast();
   const post = posts.find((item) => item.id === postId);
   const [openingChat, setOpeningChat] = useState(false);
+  const [offerModalVisible, setOfferModalVisible] = useState(false);
+  const [offerPrice, setOfferPrice] = useState("");
+  const [offerMessage, setOfferMessage] = useState("");
+  const [submittingOffer, setSubmittingOffer] = useState(false);
 
   function goBack() {
     if (router.canGoBack()) router.back();
@@ -35,6 +42,29 @@ export function PostDetailScreen() {
       return;
     }
     router.push(`/chat/${conversationId}`);
+  }
+
+  function openOfferModal() {
+    setOfferPrice(post ? String(post.price) : "");
+    setOfferMessage("");
+    setOfferModalVisible(true);
+  }
+
+  async function submitOffer() {
+    if (!post || submittingOffer) return;
+    const price = Number(offerPrice.replace(/[^0-9]/g, ""));
+    if (!price) return showToast("제안 금액을 입력해주세요.");
+    if (offerMessage.trim().length < 5) return showToast("제안 메시지를 5자 이상 입력해주세요.");
+
+    try {
+      setSubmittingOffer(true);
+      const { error } = await addOffer({ postId: post.id, price, message: offerMessage.trim() });
+      if (error) return showToast(error);
+      setOfferModalVisible(false);
+      showToast("제안을 보냈어요.");
+    } finally {
+      setSubmittingOffer(false);
+    }
   }
 
   if (!post) {
@@ -104,17 +134,74 @@ export function PostDetailScreen() {
         </View>
 
         {!post.mine && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="1:1 채팅 열기"
-            onPress={openChat}
-            disabled={openingChat}
-            style={[styles.chatButton, { backgroundColor: palette.lime, opacity: openingChat ? 0.7 : 1 }]}
-          >
-            {openingChat ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "800", fontSize: 15 }}>채팅하기</Text>}
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="제안하기"
+              onPress={openOfferModal}
+              style={[styles.offerButton, { backgroundColor: palette.white, borderColor: palette.lime }]}
+            >
+              <Text style={{ color: palette.lime, fontWeight: "800", fontSize: 14 }}>제안하기</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="1:1 채팅 열기"
+              onPress={openChat}
+              disabled={openingChat}
+              style={[styles.chatButton, { backgroundColor: palette.lime, opacity: openingChat ? 0.7 : 1 }]}
+            >
+              {openingChat ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "800", fontSize: 15 }}>채팅하기</Text>}
+            </Pressable>
+          </View>
         )}
       </ScrollView>
+
+      <Modal visible={offerModalVisible} transparent animationType="slide" onRequestClose={() => setOfferModalVisible(false)}>
+        <KeyboardAvoidingView style={styles.modalRoot} behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined}>
+          <Pressable accessibilityRole="button" accessibilityLabel="제안 작성 닫기" style={styles.backdrop} onPress={() => setOfferModalVisible(false)} />
+          <View style={[styles.sheet, { backgroundColor: palette.paper, paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+            <View style={[styles.handle, { backgroundColor: palette.line }]} />
+            <Text style={[styles.sheetTitle, { color: palette.ink }]}>가격 제안하기</Text>
+            <Text style={[styles.sheetSub, { color: palette.muted }]} numberOfLines={1}>{post.title}</Text>
+
+            <View style={styles.field}>
+              <Text style={[styles.fieldLabel, { color: palette.ink }]}>제안 금액</Text>
+              <TextInput
+                value={offerPrice}
+                onChangeText={setOfferPrice}
+                keyboardType="number-pad"
+                placeholder="금액을 입력하세요"
+                placeholderTextColor={palette.muted}
+                style={[styles.input, { backgroundColor: palette.white, borderColor: palette.line, color: palette.ink }]}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={[styles.fieldLabel, { color: palette.ink }]}>메시지</Text>
+              <TextInput
+                value={offerMessage}
+                onChangeText={setOfferMessage}
+                multiline
+                maxLength={300}
+                textAlignVertical="top"
+                placeholder="거래 조건이나 원하는 시간을 적어주세요."
+                placeholderTextColor={palette.muted}
+                style={[styles.textarea, { backgroundColor: palette.white, borderColor: palette.line, color: palette.ink }]}
+              />
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="제안 보내기"
+              onPress={submitOffer}
+              disabled={submittingOffer}
+              style={[styles.submitOffer, { backgroundColor: palette.lime, opacity: submittingOffer ? 0.7 : 1 }]}
+            >
+              {submittingOffer ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "800", fontSize: 14 }}>제안 보내기</Text>}
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -141,5 +228,18 @@ const styles = StyleSheet.create({
   authorCard: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 42, height: 42, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   authorName: { fontSize: 14, fontWeight: "800" },
-  chatButton: { alignItems: "center", borderRadius: 14, paddingVertical: 15, marginTop: 4 },
+  actionRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  offerButton: { flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderRadius: 14, paddingVertical: 15 },
+  chatButton: { flex: 1.4, alignItems: "center", justifyContent: "center", borderRadius: 14, paddingVertical: 15 },
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(31,25,35,0.42)" },
+  sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 32, gap: 14 },
+  handle: { alignSelf: "center", width: 38, height: 4, borderRadius: 2 },
+  sheetTitle: { fontSize: 17, fontWeight: "900" },
+  sheetSub: { fontSize: 11, marginTop: -8 },
+  field: { gap: 8 },
+  fieldLabel: { fontSize: 12, fontWeight: "800" },
+  input: { borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 12, fontSize: 13 },
+  textarea: { minHeight: 100, borderWidth: 1, borderRadius: 13, padding: 13, fontSize: 12, lineHeight: 18 },
+  submitOffer: { alignItems: "center", justifyContent: "center", borderRadius: 14, paddingVertical: 15 },
 });

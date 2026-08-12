@@ -46,8 +46,27 @@ const rawSeedPosts: Post[] = [
   { id:"buy-daejeon-lens",type:"buy",category:"디지털",title:"소니 35mm 단렌즈 대전 직거래로 찾아요",description:"외관 사용감은 괜찮고 곰팡이나 포커스 이상이 없는 제품을 구합니다.",price:390000,region:"궁동",author:"필름산책",manner:95.2,views:112,offerCount:3,created:"43분 전",status:"open" },
 ];
 
-// [대전·세종 샘플] 기존의 다양한 예시 내용은 유지하되 베타 노출 지역은 지원 지역 안에서 순환합니다.
-export const seedPosts: Post[] = rawSeedPosts.map((post, index) => ({ ...post, region: regionLabels[index % regionLabels.length] }));
+// [대전·세종 샘플] 전체 지역 목록이 커져도 예시 글이 특정 구에 몰리지 않도록 대표 지역을 고르게 순환합니다.
+const demoRegionLabels = [
+  "대전 유성구 봉명동", "세종 나성동", "대전 유성구 도룡동", "대전 서구 둔산동", "세종 고운동",
+  "대전 중구 대흥동", "세종 보람동", "대전 대덕구 송촌동", "대전 동구 가오동", "세종 조치원읍",
+  "대전 서구 도안동", "세종 어진동", "대전 유성구 궁동", "세종 집현동", "대전 중구 은행동",
+] as const;
+
+const demoRegionByPostId: Record<string, string> = {
+  "my-queue": "대전 유성구 봉명동",
+  "buy-ipad": "대전 유성구 도룡동",
+  "urgent-line": "대전 서구 둔산동",
+  "my-sejong-cake": "세종 나성동",
+  "my-daejeon-console": "대전 서구 둔산동",
+  "urgent-sejong-study": "세종 어진동",
+  "buy-daejeon-lens": "대전 유성구 궁동",
+};
+
+export const seedPosts: Post[] = rawSeedPosts.map((post, index) => ({
+  ...post,
+  region: demoRegionByPostId[post.id] ?? demoRegionLabels[index % demoRegionLabels.length],
+}));
 
 // [채팅] Supabase 환경변수가 없는 로컬 베타 데모에서만 쓰는 대화방 목록
 export const seedConversations: Conversation[] = [
@@ -79,16 +98,16 @@ export const seedConversations: Conversation[] = [
 
 // [알림]
 export const seedNotices: AppNotice[] = [
-  { id:"notice-offer",kind:"offer",title:"새 지원자가 있어요",body:"동네러너님이 급구 글에 24,000원을 제안했어요.",time:"12분 전",read:false,postId:"my-queue" },
-  { id:"notice-keyword",kind:"keyword",title:"'아이패드' 새 글",body:"대전 도룡동에 조건과 맞는 구매글이 올라왔어요.",time:"28분 전",read:false,postId:"buy-ipad" },
-  { id:"notice-urgent",kind:"urgent",title:"내 지역 마감 임박 급구",body:"대전 궁동 팝업 대기줄 확인 미션이 곧 마감돼요.",time:"35분 전",read:true,postId:"urgent-line" },
-  { id:"notice-chat",kind:"chat",title:"새 채팅 메시지",body:"레몬소다님이 거래 장소를 제안했어요.",time:"47분 전",read:false,postId:"buy-ipad" },
-  { id:"notice-trade",kind:"trade",title:"거래 일정 확인",body:"오늘 오후 7시 봉명동 거래 일정이 있어요.",time:"1시간 전",read:false,postId:"buy-ipad" },
-  { id:"notice-favorite",kind:"favorite",title:"찜한 급구 마감 임박",body:"강아지 산책 급구가 2시간 뒤 마감돼요.",time:"2시간 전",read:true,postId:"urgent-dog" },
-  { id:"notice-sejong",kind:"keyword",title:"'세종 케이크' 새 글",body:"나성동에서 관심 키워드와 일치하는 급구가 올라왔어요.",time:"3시간 전",read:false,postId:"my-sejong-cake" },
-  { id:"notice-system",kind:"system",title:"대전·세종 지역 설정 안내",body:"활동 지역을 최대 3곳까지 선택할 수 있어요.",time:"어제",read:true },
-  { id:"notice-offer-accepted",kind:"offer",title:"보낸 제안이 수락됐어요",body:"팝업 대기줄 확인 미션의 1:1 채팅이 열렸어요.",time:"어제",read:true,postId:"urgent-line" },
-  { id:"notice-review",kind:"trade",title:"거래 후기를 남겨주세요",body:"완료한 대리구매 거래의 후기를 작성하면 신뢰도에 반영돼요.",time:"2일 전",read:true,postId:"urgent-gift" },
+  { id:"notice-offer",kind:"offer",title:"새 지원자가 있어요",body:"동네러너님이 급구 글에 24,000원을 제안했어요.",time:"12분 전",read:false,postId:"my-queue",target:{type:"offer",offerId:"offer-in-queue"} },
+  { id:"notice-keyword",kind:"keyword",title:"'아이패드' 새 글",body:"대전 도룡동에 조건과 맞는 구매글이 올라왔어요.",time:"28분 전",read:false,postId:"buy-ipad",target:{type:"post",postId:"buy-ipad"} },
+  { id:"notice-urgent",kind:"urgent",title:"내 지역 마감 임박 급구",body:"대전 궁동 팝업 대기줄 확인 미션이 곧 마감돼요.",time:"35분 전",read:true,postId:"urgent-line",target:{type:"post",postId:"urgent-line"} },
+  { id:"notice-chat",kind:"chat",title:"새 채팅 메시지",body:"레몬소다님이 거래 장소를 제안했어요.",time:"47분 전",read:false,postId:"buy-ipad",target:{type:"chat",conversationId:"conversation-demo-1"} },
+  { id:"notice-trade",kind:"trade",title:"거래 일정 확인",body:"오늘 오후 7시 봉명동 거래 일정이 있어요.",time:"1시간 전",read:false,postId:"buy-ipad",target:{type:"transactions"} },
+  { id:"notice-favorite",kind:"favorite",title:"찜한 급구 마감 임박",body:"강아지 산책 급구가 2시간 뒤 마감돼요.",time:"2시간 전",read:true,postId:"urgent-dog",target:{type:"post",postId:"urgent-dog"} },
+  { id:"notice-sejong",kind:"keyword",title:"'세종 케이크' 새 글",body:"나성동에서 관심 키워드와 일치하는 급구가 올라왔어요.",time:"3시간 전",read:false,postId:"my-sejong-cake",target:{type:"post",postId:"my-sejong-cake"} },
+  { id:"notice-system",kind:"system",title:"대전·세종 지역 설정 안내",body:"활동 지역을 최대 3곳까지 선택할 수 있어요.",time:"어제",read:true,target:{type:"region"} },
+  { id:"notice-offer-accepted",kind:"offer",title:"보낸 제안이 수락됐어요",body:"팝업 대기줄 확인 미션의 1:1 채팅이 열렸어요.",time:"어제",read:true,postId:"urgent-line",target:{type:"chat",conversationId:"conversation-demo-2"} },
+  { id:"notice-review",kind:"trade",title:"거래 후기를 남겨주세요",body:"완료한 대리구매 거래의 후기를 작성하면 신뢰도에 반영돼요.",time:"2일 전",read:true,postId:"urgent-gift",target:{type:"post",postId:"urgent-gift"} },
 ];
 
 // [판매 제안] 홈의 받은 제안·보낸 제안과 상세 화면에서 함께 사용하는 예시 데이터

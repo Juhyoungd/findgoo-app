@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { appIcons } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
+import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 import { useAppData } from "@/src/state/AppDataContext";
@@ -35,10 +38,16 @@ export default function ChatThreadScreen() {
   const [draft, setDraft] = useState("");
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
-  // 웹 미리보기에서는 탭바 숨김 처리가 반영되지 않는 경우가 있어 입력창을 가릴 수 있어서
-  // 탭바 높이만큼 여백을 더해주지만, 실제 앱(iOS/Android)에서는 탭바가 정상적으로 숨겨지므로
-  // 여백을 더하면 오히려 입력창이 불필요하게 커져서 웹에서만 적용합니다.
-  const tabBarClearance = Platform.OS === "web" ? 66 + Math.max(insets.bottom, 10) + 10 : 0;
+  useEffect(() => {
+    const keyboardEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const subscription = Keyboard.addListener(keyboardEvent, () => {
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // 채팅방에서는 하단 탭바가 숨겨지므로 입력창에는 기기 홈 인디케이터만큼의 안전 여백만 둡니다.
+  const composerBottomInset = Math.max(insets.bottom, 10);
 
   const conversation = conversations.find((item) => item.id === conversationId);
   const myId = session?.user.id;
@@ -116,11 +125,9 @@ export default function ChatThreadScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top", "left", "right"]}>
       <View style={[styles.header, { borderBottomColor: palette.line }]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={{ fontSize: 18, color: palette.ink }}>←</Text>
-        </Pressable>
+        <BackButton onPress={() => router.back()} accessibilityLabel="채팅 목록으로 돌아가기" />
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerTitle, { color: palette.ink }]}>{conversation.counterpartyName}</Text>
           <Text style={{ color: palette.muted, fontSize: 11 }} numberOfLines={1}>{conversation.postTitle}</Text>
@@ -129,7 +136,7 @@ export default function ChatThreadScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${conversation.counterpartyName}님 신고하기`}
           onPress={() => router.push(`/report/${conversation.postId}`)}
-          style={[styles.reportButton, { backgroundColor: `${palette.orange}12`, borderColor: `${palette.orange}66` }]}
+          style={[styles.reportButton, { backgroundColor: palette.white, borderColor: `${palette.orange}66` }]}
         >
           <Text style={{ color: palette.orange, fontSize: 10, fontWeight: "800" }}>신고</Text>
         </Pressable>
@@ -140,12 +147,14 @@ export default function ChatThreadScreen() {
         <Text style={{ color: palette.ink, fontSize: 12 }}>{won(conversation.postPrice)}</Text>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : undefined} keyboardVerticalOffset={0}>
         <FlatList
           ref={listRef}
           data={messages}
           keyExtractor={(message) => message.id}
           contentContainerStyle={styles.messages}
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          keyboardShouldPersistTaps="handled"
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           renderItem={({ item }) => (
             <View style={[styles.bubble, item.mine ? [styles.bubbleMe, { backgroundColor: palette.lime }] : [styles.bubblePartner, { backgroundColor: palette.white, borderColor: palette.line }]]}>
@@ -153,17 +162,22 @@ export default function ChatThreadScreen() {
             </View>
           )}
         />
-        <View style={[styles.compose, { borderTopColor: palette.line, backgroundColor: palette.white, paddingBottom: tabBarClearance }]}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="거래 시간과 장소를 정해보세요"
-            placeholderTextColor={palette.muted}
-            style={[styles.composeInput, { color: palette.ink }]}
-            onSubmitEditing={submit}
-          />
-          <Pressable onPress={submit} style={[styles.sendButton, { backgroundColor: palette.lime }]}>
-            <Text style={{ color: palette.white, fontWeight: "700" }}>↑</Text>
+        <View style={[styles.compose, { borderTopColor: palette.line, backgroundColor: palette.white, paddingBottom: composerBottomInset }]}>
+          <View style={[styles.inputShell, { backgroundColor: palette.paper, borderColor: palette.line }]}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="메시지 입력"
+              placeholderTextColor={palette.muted}
+              multiline
+              maxLength={1000}
+              textAlignVertical="center"
+              style={[styles.composeInput, { color: palette.ink }]}
+              onFocus={() => requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }))}
+            />
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="메시지 전송" disabled={!draft.trim()} onPress={submit} haptic="light" pressedScale={0.91} style={[styles.sendButton, { backgroundColor: palette.white, borderColor: draft.trim() ? palette.lime : palette.line }, Platform.OS === "web" ? { boxShadow: `0 3px 7px ${palette.ink}0f` } : { shadowColor: palette.ink }]}>
+            <AppIcon name={appIcons.send} color={draft.trim() ? palette.lime : palette.muted} size={20} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -173,15 +187,16 @@ export default function ChatThreadScreen() {
 
 const styles = StyleSheet.create({
   missing: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1 },
+  header: { minHeight: 66, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
   headerTitle: { fontSize: 15, fontWeight: "700" },
   reportButton: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   dealBanner: { flexDirection: "row", justifyContent: "space-between", marginHorizontal: 20, marginTop: 12, borderRadius: 10, padding: 12 },
-  messages: { padding: 20, gap: 10 },
+  messages: { flexGrow: 1, justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 18, paddingBottom: 14, gap: 10 },
   bubble: { maxWidth: "78%", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleMe: { alignSelf: "flex-end", borderBottomRightRadius: 4 },
   bubblePartner: { alignSelf: "flex-start", borderWidth: 1, borderBottomLeftRadius: 4 },
-  compose: { flexDirection: "row", alignItems: "center", gap: 10, borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 10 },
-  composeInput: { flex: 1, fontSize: 13, paddingVertical: 8 },
-  sendButton: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  compose: { flexDirection: "row", alignItems: "flex-end", gap: 9, borderTopWidth: 1, paddingHorizontal: 12, paddingTop: 9, paddingBottom: 10 },
+  inputShell: { flex: 1, minHeight: 42, maxHeight: 104, borderWidth: 1, borderRadius: 21, justifyContent: "center", paddingHorizontal: 14 },
+  composeInput: { minHeight: 40, maxHeight: 96, fontSize: 14, lineHeight: 20, paddingTop: 10, paddingBottom: 9 },
+  sendButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center", marginBottom: 1, elevation: 2, ...Platform.select({ web: {}, default: { shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 7 } }) },
 });

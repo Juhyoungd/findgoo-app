@@ -1,7 +1,7 @@
 // [공통 타입] 화면과 API가 함께 사용하는 데이터 모양을 한곳에서 관리합니다.
 export type PostType = "buy" | "urgent";
 export type PostStatus = "open" | "reserved" | "closed";
-export type ThemeId = "dusk" | "warm" | "ocean" | "forest" | "berry";
+export type ThemeId = "apricot" | "rosewater" | "butter" | "lavender" | "pistachio";
 export type BottomNavKey = "home" | "urgent" | "create" | "chat" | "my";
 
 export type Post = {
@@ -78,6 +78,12 @@ export type AppNotice = {
   time: string;
   read: boolean;
   postId?: string;
+  target:
+    | { type: "post"; postId: string }
+    | { type: "offer"; offerId: string }
+    | { type: "chat"; conversationId: string }
+    | { type: "transactions" }
+    | { type: "region" };
 };
 
 export type Viewer = {

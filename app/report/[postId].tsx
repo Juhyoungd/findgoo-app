@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { BackButton } from "@/src/components/common/BackButton";
 import { useAppData } from "@/src/state/AppDataContext";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useTheme } from "@/src/theme/ThemeContext";
@@ -34,7 +35,7 @@ export default function ReportUserScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <View style={[styles.header, { backgroundColor: palette.white, borderBottomColor: palette.line }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="채팅으로 돌아가기" onPress={() => router.back()} hitSlop={8}><Text style={[styles.back, { color: palette.ink }]}>‹</Text></Pressable>
+        <BackButton onPress={() => router.back()} accessibilityLabel="채팅으로 돌아가기" />
         <View style={{ flex: 1 }}><Text style={[styles.headerTitle, { color: palette.ink }]}>거래 상대 신고</Text><Text style={[styles.headerSub, { color: palette.muted }]}>{counterparty}</Text></View>
       </View>
 
@@ -80,7 +81,6 @@ export default function ReportUserScreen() {
 const styles = StyleSheet.create({
   missing: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { minHeight: 62, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, borderBottomWidth: 1 },
-  back: { fontSize: 30, lineHeight: 32 },
   headerTitle: { fontSize: 16, fontWeight: "800" },
   headerSub: { fontSize: 9, marginTop: 2 },
   content: { padding: 20, paddingBottom: 36, gap: 20 },

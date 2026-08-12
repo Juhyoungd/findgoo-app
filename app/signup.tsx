@@ -5,8 +5,11 @@ import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useAuth } from "@/src/state/AuthContext";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
+import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
+import { useToast } from "@/src/state/ToastContext";
+import { getAuthErrorMessage, getPasswordRuleError, isValidEmail, koreanMobilePattern } from "@/src/utils/validation";
 
 // [회원가입] 이름/이메일/비밀번호/휴대폰 인증/약관 동의로 구성된 보편적인 가입 폼 배치
 // 로그인/아이디찾기와 같은 톤을 유지하면서, 한 화면에 들어오도록 여백과 요소 높이를 살짝만 줄였습니다.
@@ -16,6 +19,7 @@ export default function SignupScreen() {
   const { palette } = useTheme();
   const router = useRouter();
   const { signUp, signOut } = useAuth();
+  const { showToast } = useToast();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,35 +44,39 @@ export default function SignupScreen() {
   }
 
   function requestCode() {
-    if (!phone.trim()) return Alert.alert("휴대폰번호를 입력해주세요");
+    if (!phone.trim()) return showToast("휴대폰번호를 입력해주세요.");
+    if (!koreanMobilePattern.test(phone)) return showToast("휴대폰번호 형식을 확인해주세요. '-' 없이 입력해주세요.");
     setCodeSent(true);
-    Alert.alert("인증번호 발송", "휴대폰으로 인증번호를 보냈어요. (베타: 아무 6자리나 입력하세요)");
+    showToast("인증번호를 보냈어요. 베타에서는 아무 6자리나 입력하세요.");
   }
 
   function confirmCode() {
-    if (!codeSent) return Alert.alert("먼저 인증번호 전송을 눌러주세요");
-    if (code.length !== 6) return Alert.alert("인증번호 6자리를 입력해주세요");
+    if (!codeSent) return showToast("먼저 인증번호 전송을 눌러주세요.");
+    if (code.length !== 6) return showToast("인증번호 6자리를 입력해주세요.");
     setVerified(true);
-    Alert.alert("인증 완료", "휴대폰 인증이 확인됐어요.");
+    showToast("휴대폰 인증이 확인됐어요.");
   }
 
   async function submit() {
-    if (!name.trim()) return Alert.alert("이름을 입력해주세요");
-    if (!email.trim()) return Alert.alert("이메일을 입력해주세요");
-    if (password.length < 8) return Alert.alert("비밀번호는 8자 이상 입력해주세요");
-    if (password !== confirmPassword) return Alert.alert("비밀번호가 서로 달라요");
-    if (!verified) return Alert.alert("휴대폰 인증번호 확인을 완료해주세요");
-    if (!agreeTerms || !agreePrivacy) return Alert.alert("필수 약관에 동의해주세요");
+    if (name.trim().length < 2) return showToast("이름을 2자 이상 입력해주세요.");
+    if (!email.trim()) return showToast("이메일을 입력해주세요.");
+    if (!isValidEmail(email)) return showToast("이메일 주소 형식이 올바르지 않아요.");
+    const passwordError = getPasswordRuleError(password);
+    if (passwordError) return showToast(passwordError);
+    if (password !== confirmPassword) return showToast("비밀번호가 서로 달라요.");
+    if (!koreanMobilePattern.test(phone)) return showToast("휴대폰번호 형식을 확인해주세요.");
+    if (!verified) return showToast("휴대폰 인증번호 확인을 완료해주세요.");
+    if (!agreeTerms || !agreePrivacy) return showToast("필수 약관에 동의해주세요.");
 
     setLoading(true);
     console.log("[signup] submit 시작", { email: email.trim() });
     try {
       const { error } = await signUp({ email: email.trim(), password, name: name.trim(), phone: phone.trim() });
       console.log("[signup] signUp 결과", { error });
-      if (error) return Alert.alert("가입 실패", error);
+      if (error) return showToast(getAuthErrorMessage(error, "signup"));
     } catch (err) {
       console.log("[signup] signUp 예외", err);
-      Alert.alert("가입 실패", err instanceof Error ? err.message : String(err));
+      showToast("가입 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
       return;
     } finally {
       setLoading(false);
@@ -88,9 +96,7 @@ export default function SignupScreen() {
     <SafeAreaView style={[s.safe, { backgroundColor: palette.paper }]}>
       <BackgroundBlobs />
       <View style={[s.backRow, compact.backRow]}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={[s.backText, { color: palette.muted }]}>‹ 뒤로</Text>
-        </Pressable>
+        <BackButton onPress={() => router.back()} />
       </View>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={[s.content, compact.content]} keyboardShouldPersistTaps="handled">
@@ -144,10 +150,15 @@ export default function SignupScreen() {
             <View style={s.inlineRow}>
               <TextInput
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(value) => {
+                  setPhone(value.replace(/[^0-9]/g, ""));
+                  setVerified(false);
+                  setCodeSent(false);
+                }}
                 placeholder="휴대폰번호 입력 ('-' 제외)"
                 placeholderTextColor={palette.muted}
                 keyboardType="number-pad"
+                maxLength={11}
                 style={[s.input, s.inlineInput, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
               />
               <Pressable onPress={requestCode} style={[s.pillButton, compact.pillButton, { borderColor: palette.line, backgroundColor: palette.white }]}>

@@ -1,6 +1,8 @@
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { appIcons } from "@/src/assets/app-icons";
+import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
@@ -63,7 +65,7 @@ export default function ChatListScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={{ fontSize: 26 }}>●</Text>
+            <View style={[styles.emptyIcon, { borderColor: palette.line }]}><AppIcon name={appIcons.chat} color={palette.muted} size={24} /></View>
             <Text style={[styles.emptyTitle, { color: palette.ink }]}>열린 채팅이 없어요</Text>
             <Text style={{ color: palette.muted, fontSize: 12, textAlign: "center" }}>관심 있는 글의 상세 화면에서{"\n"}"채팅하기"를 누르면 대화방이 열려요.</Text>
           </View>
@@ -83,5 +85,6 @@ const styles = StyleSheet.create({
   unreadDot: { position: "absolute", top: -2, right: -2, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
   rowTitle: { fontSize: 14, fontWeight: "700" },
   empty: { alignItems: "center", gap: 8, paddingVertical: 60 },
+  emptyIcon: { width: 48, height: 48, borderRadius: 24, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontWeight: "700" },
 });

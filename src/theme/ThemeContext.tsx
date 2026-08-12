@@ -12,7 +12,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 // [색상 변경] 웹의 useThemePicker와 동일하게 다섯 테마를 순서대로 순환합니다.
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeId, setThemeId] = useState<ThemeId>("warm");
+  const [themeId, setThemeId] = useState<ThemeId>("apricot");
 
   const activeIndex = themeOptions.findIndex((theme) => theme.id === themeId);
   const activeTheme = themeOptions[activeIndex];

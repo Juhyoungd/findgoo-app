@@ -7,8 +7,8 @@ export function BackgroundBlobs() {
   const { activeTheme } = useTheme();
   return (
     <>
-      <View style={[styles.blob, styles.blobTopRight, { backgroundColor: activeTheme.colors[1] }]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobBottomLeft, { backgroundColor: activeTheme.colors[2] }]} pointerEvents="none" />
+      <View style={[styles.blob, styles.blobTopRight, { backgroundColor: activeTheme.colors[1], pointerEvents: "none" }]} />
+      <View style={[styles.blob, styles.blobBottomLeft, { backgroundColor: activeTheme.colors[2], pointerEvents: "none" }]} />
     </>
   );
 }

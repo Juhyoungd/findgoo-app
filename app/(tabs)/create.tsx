@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { categories, regions } from "@/src/constants/feature-spec";
+import { categories } from "@/src/constants/feature-spec";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
@@ -17,10 +17,10 @@ export default function CreateScreen() {
   const { palette } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: string }>();
-  const { region, addPost } = useAppData();
+  const { region, selectedRegions, addPost } = useAppData();
   const { showToast } = useToast();
 
-  const [type, setType] = useState<PostType>(params.type === "buy" ? "buy" : "urgent");
+  const type: PostType = params.type === "buy" ? "buy" : "urgent";
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(type === "urgent" ? "심부름" : "디지털");
   const [postRegion, setPostRegion] = useState(region);
@@ -28,11 +28,6 @@ export default function CreateScreen() {
   const [deadline, setDeadline] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  function changeType(next: PostType) {
-    setType(next);
-    setCategory(next === "urgent" ? "심부름" : "디지털");
-  }
 
   async function submit() {
     const priceValue = Number(price);
@@ -77,15 +72,6 @@ export default function CreateScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={[styles.heading, { color: palette.ink }]}>{type === "buy" ? "구매글 작성" : "급구 작성"}</Text>
 
-          <View style={[styles.typeSwitch, { backgroundColor: palette.line }]}>
-            <Pressable onPress={() => changeType("buy")} style={[styles.typeButton, type === "buy" && { backgroundColor: palette.white }]}>
-              <Text style={{ color: type === "buy" ? palette.ink : palette.muted, fontWeight: "600" }}>구매해요</Text>
-            </Pressable>
-            <Pressable onPress={() => changeType("urgent")} style={[styles.typeButton, type === "urgent" && { backgroundColor: palette.white }]}>
-              <Text style={{ color: type === "urgent" ? palette.ink : palette.muted, fontWeight: "600" }}>급구</Text>
-            </Pressable>
-          </View>
-
           <Field label="제목">
             <TextInput
               value={title}
@@ -102,7 +88,7 @@ export default function CreateScreen() {
           </Field>
 
           <Field label="동네">
-            <ChipRow options={regions} value={postRegion} onChange={setPostRegion} palette={palette} />
+            <ChipRow options={selectedRegions.length ? selectedRegions : [region]} value={postRegion} onChange={setPostRegion} palette={palette} />
           </Field>
 
           <Field label={type === "buy" ? "희망 가격" : "지원 금액"}>
@@ -185,8 +171,6 @@ function ChipRow({ options, value, onChange, palette }: { options: readonly stri
 const styles = StyleSheet.create({
   content: { padding: 24, paddingBottom: 120, gap: 4 },
   heading: { fontSize: 20, fontWeight: "800", marginBottom: 16 },
-  typeSwitch: { flexDirection: "row", borderRadius: 9, padding: 3, marginBottom: 20, alignSelf: "flex-start" },
-  typeButton: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 7 },
   field: { marginBottom: 18, gap: 8 },
   fieldLabel: { fontSize: 12, fontWeight: "700" },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14 },

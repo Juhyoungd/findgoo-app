@@ -2,6 +2,7 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
@@ -29,9 +30,7 @@ export function OfferListScreen({ direction }: { direction: Offer["direction"] }
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <AppHeader />
       <View style={[styles.header, { borderBottomColor: palette.line }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="홈으로 돌아가기" onPress={goBack} style={({ pressed }) => [styles.back, { backgroundColor: palette.white, borderColor: palette.line }, pressed && styles.pressed]}>
-          <Text style={[styles.backIcon, { color: palette.ink }]}>‹</Text>
-        </Pressable>
+        <BackButton onPress={goBack} accessibilityLabel="홈으로 돌아가기" />
         <View style={{ flex: 1 }}>
           <Text style={[styles.eyebrow, { color: palette.lime }]}>{direction === "incoming" ? "INCOMING" : "OUTGOING"}</Text>
           <Text style={[styles.title, { color: palette.ink }]}>{title}</Text>
@@ -85,8 +84,6 @@ export function OfferListScreen({ direction }: { direction: Offer["direction"] }
 
 const styles = StyleSheet.create({
   header: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, borderBottomWidth: 1 },
-  back: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  backIcon: { fontSize: 28, lineHeight: 30, marginTop: -2 },
   pressed: { opacity: 0.74, transform: [{ scale: 0.98 }] },
   eyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
   title: { fontSize: 19, fontWeight: "800", marginTop: 2 },

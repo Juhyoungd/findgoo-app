@@ -8,11 +8,11 @@ export const themeOptions: ReadonlyArray<{
   icon: string;
   colors: readonly [string, string, string];
 }> = [
-  { id: "warm", label: "살구 크림", icon: "●", colors: ["#ef8f73", "#f8d7c9", "#c9d9cd"] },
-  { id: "dusk", label: "라일락 밀크", icon: "●", colors: ["#8170a8", "#ddd3ee", "#c8d9e8"] },
-  { id: "forest", label: "세이지 가든", icon: "●", colors: ["#69856f", "#d2dfc8", "#f0d9b9"] },
-  { id: "ocean", label: "블루 소다", icon: "●", colors: ["#4d8197", "#c8e8e2", "#f7deb8"] },
-  { id: "berry", label: "로즈 티", icon: "●", colors: ["#a85f78", "#f0cbd5", "#dcd2ef"] },
+  { id: "apricot", label: "살구 크림", icon: "", colors: ["#e88870", "#f8d9cc", "#d9e4dc"] },
+  { id: "rosewater", label: "로즈 워터", icon: "", colors: ["#cf7f91", "#f4dce2", "#e7ddd6"] },
+  { id: "butter", label: "바닐라 버터", icon: "", colors: ["#be8a45", "#f5e5bd", "#dce4cf"] },
+  { id: "lavender", label: "라벤더 솜", icon: "", colors: ["#8776aa", "#e8e0f2", "#dce5ed"] },
+  { id: "pistachio", label: "피스타치오 크림", icon: "", colors: ["#718b78", "#dce8d7", "#f1dfca"] },
 ];
 
 export type ThemePalette = {
@@ -29,9 +29,9 @@ export type ThemePalette = {
 
 // [앱 색상] 웹의 CSS 변수(:root, .theme-*)를 RN 스타일에서 쓸 수 있게 값으로 옮겨왔습니다.
 export const palettes: Record<ThemeId, ThemePalette> = {
-  warm: { ink: "#342d2a", muted: "#7f746e", paper: "#fbf5ef", white: "#fffdfa", line: "#eadfd5", lime: "#ef8f73", limeDark: "#cf7259", orange: "#e87863", blue: "#f8d7c9" },
-  dusk: { ink: "#322d3e", muted: "#777182", paper: "#f7f3fa", white: "#fffefe", line: "#e8e0ee", lime: "#8170a8", limeDark: "#67578b", orange: "#d68193", blue: "#ddd3ee" },
-  forest: { ink: "#293329", muted: "#737c70", paper: "#f4f7f0", white: "#fffefa", line: "#dfe7d8", lime: "#69856f", limeDark: "#526b58", orange: "#c98a55", blue: "#d2dfc8" },
-  ocean: { ink: "#22333a", muted: "#6f8085", paper: "#f0f7f7", white: "#ffffff", line: "#d9e8e6", lime: "#4d8197", limeDark: "#396a80", orange: "#e1a35d", blue: "#c8e8e2" },
-  berry: { ink: "#3a2931", muted: "#86737d", paper: "#faf2f5", white: "#fffefe", line: "#eedde4", lime: "#a85f78", limeDark: "#884a61", orange: "#dc7d9a", blue: "#f0cbd5" },
+  apricot: { ink: "#332d2a", muted: "#81756f", paper: "#fcf6f1", white: "#fffdfb", line: "#ecdfd6", lime: "#e88870", limeDark: "#ca6d57", orange: "#d96f62", blue: "#f8d9cc" },
+  rosewater: { ink: "#352d31", muted: "#84767b", paper: "#fcf5f7", white: "#fffdfd", line: "#eedfe3", lime: "#cf7f91", limeDark: "#ad6275", orange: "#d67573", blue: "#f4dce2" },
+  butter: { ink: "#342f27", muted: "#827a6c", paper: "#fdf9ee", white: "#fffefa", line: "#ece4d2", lime: "#be8a45", limeDark: "#9f6f35", orange: "#d2785f", blue: "#f5e5bd" },
+  lavender: { ink: "#302d38", muted: "#7b7584", paper: "#faf7fc", white: "#fffefe", line: "#e9e2ee", lime: "#8776aa", limeDark: "#6d5b91", orange: "#cf7e8e", blue: "#e8e0f2" },
+  pistachio: { ink: "#2d332e", muted: "#758078", paper: "#f7faf4", white: "#fffefa", line: "#e1e8dc", lime: "#718b78", limeDark: "#587061", orange: "#d18463", blue: "#dce8d7" },
 };

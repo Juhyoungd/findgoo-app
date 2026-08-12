@@ -2,6 +2,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { BackButton } from "@/src/components/common/BackButton";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { won } from "@/src/utils/format";
@@ -22,7 +23,7 @@ export function MyTransactionsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <AppHeader />
       <View style={[styles.header, { borderBottomColor: palette.line }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="홈으로 돌아가기" onPress={goBack} style={[styles.back, { backgroundColor: palette.white, borderColor: palette.line }]}><Text style={{ color: palette.ink, fontSize: 27 }}>‹</Text></Pressable>
+        <BackButton onPress={goBack} accessibilityLabel="홈으로 돌아가기" />
         <View style={{ flex: 1 }}><Text style={[styles.eyebrow, { color: palette.lime }]}>ACTIVE DEALS</Text><Text style={[styles.title, { color: palette.ink }]}>진행 중 거래</Text></View>
         <View style={[styles.count, { backgroundColor: palette.blue }]}><Text style={{ color: palette.lime, fontSize: 11, fontWeight: "900" }}>{activeOffers.length}</Text></View>
       </View>
@@ -52,7 +53,6 @@ export function MyTransactionsScreen() {
 
 const styles = StyleSheet.create({
   header: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, borderBottomWidth: 1 },
-  back: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   eyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
   title: { fontSize: 19, fontWeight: "800", marginTop: 2 },
   count: { minWidth: 34, height: 28, borderRadius: 999, alignItems: "center", justifyContent: "center" },

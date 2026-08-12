@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "re
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
+import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
@@ -51,9 +52,7 @@ export function PostDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
       <AppHeader />
       <View style={[styles.header, { borderBottomColor: palette.line }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="목록으로 돌아가기" onPress={goBack} style={({ pressed }) => [styles.back, { backgroundColor: palette.white, borderColor: palette.line }, pressed && styles.pressed]}>
-          <Text style={[styles.backIcon, { color: palette.ink }]}>‹</Text>
-        </Pressable>
+        <BackButton onPress={goBack} accessibilityLabel="목록으로 돌아가기" />
         <View style={{ flex: 1 }}>
           <Text style={[styles.eyebrow, { color: palette.lime }]}>{isUrgent ? "URGENT" : "BUY"}</Text>
           <Text style={[styles.headerTitle, { color: palette.ink }]} numberOfLines={1}>{post.title}</Text>
@@ -123,9 +122,6 @@ export function PostDetailScreen() {
 const styles = StyleSheet.create({
   missing: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, borderBottomWidth: 1 },
-  back: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  backIcon: { fontSize: 28, lineHeight: 30, marginTop: -2 },
-  pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
   eyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
   headerTitle: { fontSize: 14, fontWeight: "800", marginTop: 2 },
   heart: { width: 38, height: 38, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },

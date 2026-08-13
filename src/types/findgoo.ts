@@ -1,7 +1,22 @@
 // [공통 타입] 화면과 API가 함께 사용하는 데이터 모양을 한곳에서 관리합니다.
 export type PostType = "buy" | "urgent";
 export type PostStatus = "open" | "reserved" | "closed";
-export type ThemeId = "apricot" | "rosewater" | "butter" | "lavender" | "pistachio";
+export type ThemeId =
+  | "apricot"
+  | "rosewater"
+  | "butter"
+  | "lavender"
+  | "pistachio"
+  | "mintNavy"
+  | "sunsetPurple"
+  | "coralSky"
+  | "plumPeach"
+  | "oceanSand"
+  | "sageRose"
+  | "cobaltLilac"
+  | "mochaBlush"
+  | "forestCream"
+  | "amberTeal";
 export type BottomNavKey = "home" | "urgent" | "create" | "chat" | "my";
 
 export type Post = {
@@ -43,6 +58,7 @@ export type UserReport = {
   postId: string;
   reporter: string;
   reportedUser: string;
+  reportedUserId?: string | null;
   reason: ReportReason;
   detail: string;
   created: string;
@@ -54,9 +70,41 @@ export type ChatMessage = {
   conversationId: string;
   senderId: string;
   text: string;
+  kind: "text" | "image";
+  imagePath?: string | null;
+  imageUrl?: string | null;
   time: string;
   createdAt: string;
   mine: boolean;
+  deliveryStatus: "sending" | "sent" | "failed" | "read";
+};
+
+export type TransactionStatus = "requested" | "accepted" | "in_progress" | "completed" | "canceled" | "disputed";
+export type Transaction = {
+  id: string;
+  postId: string;
+  offerId: string;
+  sellerId: string;
+  buyerId: string;
+  status: TransactionStatus;
+  createdAt: string;
+  completedAt?: string | null;
+};
+
+export type MannerStats = {
+  completedTrades: number;
+  goodMannerReviews: number;
+  successfulUrgentMissions: number;
+  mannerReports: number;
+};
+
+export type MemberProfile = {
+  id: string;
+  nickname: string;
+  avatarUrl: string | null;
+  recentRegion: string;
+  joinedAt: string;
+  mannerStats: MannerStats;
 };
 
 export type Conversation = {
@@ -68,6 +116,7 @@ export type Conversation = {
   buyerId: string;
   counterpartyId: string;
   counterpartyName: string;
+  counterpartyProfile: MemberProfile;
   counterpartyLastReadAt: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;

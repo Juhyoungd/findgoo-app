@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { appIcons } from "@/src/assets/app-icons";
@@ -8,7 +9,7 @@ import { useAuth } from "@/src/state/AuthContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 
 // [상단 헤더] 웹 SiteHeader의 RN 버전: 브랜드 로고 + BETA 배지 + 마이페이지 진입 버튼
-export function AppHeader() {
+export const AppHeader = memo(function AppHeader() {
   const { palette } = useTheme();
   const { nickname, unreadNoticeCount } = useAppData();
   const { isAdmin } = useAuth();
@@ -21,7 +22,7 @@ export function AppHeader() {
           <Text style={styles.logoText}>찾</Text>
         </View>
         <Text style={[styles.brandText, { color: palette.ink }]}>찾구</Text>
-        <View style={styles.betaPill}>
+        <View style={[styles.betaPill, { backgroundColor: palette.blue }]}>
           <Text style={[styles.betaText, { color: palette.lime }]}>BETA</Text>
         </View>
       </MotionPressable>
@@ -41,7 +42,7 @@ export function AppHeader() {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", height: 56, paddingHorizontal: 16, borderBottomWidth: 1 },
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
   logo: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   logoText: { color: "white", fontWeight: "700", fontSize: 14 },
   brandText: { fontSize: 18, fontWeight: "800", letterSpacing: -0.5 },
-  betaPill: { backgroundColor: "#eef3ff", borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
+  betaPill: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3 },
   betaText: { fontSize: 9, fontWeight: "700", letterSpacing: 0.5 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   adminButton: { width: 30, height: 30, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },

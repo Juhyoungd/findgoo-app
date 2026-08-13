@@ -8,6 +8,8 @@ import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
 import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
+import { useToast } from "@/src/state/ToastContext";
+import { getAuthErrorMessage, isValidEmail } from "@/src/utils/validation";
 
 // [비밀번호 찾기] 이메일로 Supabase 비밀번호 재설정 링크를 보냅니다.
 // 로그인이 이메일 기반이라 "아이디 찾기"는 의미가 없어져서 이 화면 하나로 단순화했습니다.
@@ -15,16 +17,18 @@ export default function ForgotPasswordScreen() {
   const { palette } = useTheme();
   const router = useRouter();
   const { resetPassword } = useAuth();
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
   async function submit() {
-    if (!email.trim()) return Alert.alert("이메일을 입력해주세요");
+    if (!email.trim()) return showToast("이메일을 입력해주세요.");
+    if (!isValidEmail(email)) return showToast("이메일 주소 형식이 올바르지 않아요.");
     setLoading(true);
     const { error } = await resetPassword(email.trim());
     setLoading(false);
-    if (error) return Alert.alert("전송 실패", error);
+    if (error) return showToast(getAuthErrorMessage(error, "login"));
     setSent(true);
   }
 

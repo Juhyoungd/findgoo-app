@@ -1,5 +1,6 @@
 import type { AppNotice, Conversation, Offer, Post, UserReport } from "@/src/types/findgoo";
 import { regionLabels } from "@/src/constants/regions";
+import { demoMemberProfiles } from "@/src/constants/member-profiles";
 
 // [검색]
 export const categories = ["전체", "디지털", "가구·생활", "명품·패션", "취미", "티켓·굿즈", "식품", "반려동물", "사람·일손", "심부름", "전문 도움", "공간·대여"];
@@ -79,6 +80,7 @@ export const seedConversations: Conversation[] = [
     buyerId: "demo-me",
     counterpartyId: "demo-seller",
     counterpartyName: "레몬소다",
+    counterpartyProfile: demoMemberProfiles["demo-seller"],
     counterpartyLastReadAt: new Date().toISOString(),
     lastMessage: "네, 2번 출구 앞에서 뵐게요.",
     lastMessageAt: new Date().toISOString(),
@@ -92,6 +94,7 @@ export const seedConversations: Conversation[] = [
     buyerId: "demo-buyer",
     counterpartyId: "demo-buyer",
     counterpartyName: "오후두시",
+    counterpartyProfile: demoMemberProfiles["demo-buyer"],
     counterpartyLastReadAt: null,
     lastMessage: "제안 수락했습니다. 현장 도착하면 바로 연락드릴게요.",
     lastMessageAt: new Date().toISOString(),

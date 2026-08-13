@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
 import { HomeOverview } from "@/src/components/home/HomeOverview";
-import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 
@@ -24,9 +23,8 @@ export default function HomeScreen() {
   const featuredBuy = posts.find((post) => post.type === "buy" && post.status === "open");
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["left", "right"]}>
       <BackgroundBlobs />
-      <AppHeader />
       <View style={{ flex: 1 }}>
         <HomeOverview
           region={region}

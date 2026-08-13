@@ -9,6 +9,11 @@ create table public.profiles (
   phone text,
   nickname text,
   region text not null default '성수동1가',
+  avatar_url text,
+  completed_trades integer not null default 0 check (completed_trades >= 0),
+  good_manner_reviews integer not null default 0 check (good_manner_reviews >= 0),
+  urgent_successes integer not null default 0 check (urgent_successes >= 0),
+  manner_reports integer not null default 0 check (manner_reports >= 0),
   created_at timestamptz not null default now()
 );
 
@@ -25,15 +30,48 @@ create policy "본인 프로필 수정" on public.profiles
 create function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, name, phone)
+  insert into public.profiles (id, name, phone, nickname)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'name', ''),
-    new.raw_user_meta_data ->> 'phone'
+    new.raw_user_meta_data ->> 'phone',
+    coalesce(new.raw_user_meta_data ->> 'nickname', new.raw_user_meta_data ->> 'name')
   );
   return new;
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- [공개 프로필] 채팅 상대에게 필요한 최소 정보만 반환하고 실명·전화번호는 노출하지 않습니다.
+create or replace function public.get_public_profiles(p_ids uuid[])
+returns table (
+  id uuid,
+  nickname text,
+  avatar_url text,
+  region text,
+  created_at timestamptz,
+  completed_trades integer,
+  good_manner_reviews integer,
+  urgent_successes integer,
+  manner_reports integer,
+  manner_score numeric
+) as $$
+  select
+    p.id,
+    coalesce(p.nickname, '찾구 회원'),
+    p.avatar_url,
+    p.region,
+    p.created_at,
+    p.completed_trades,
+    p.good_manner_reviews,
+    p.urgent_successes,
+    p.manner_reports,
+    greatest(0, least(100,
+      36.5 + p.completed_trades * 0.5 + p.good_manner_reviews * 1.0
+      + p.urgent_successes * 0.8 - p.manner_reports * 2.0
+    ))::numeric
+  from public.profiles p
+  where p.id = any(p_ids);
+$$ language sql stable security definer set search_path = public;
 
 create trigger on_auth_user_created
   after insert on auth.users
@@ -426,3 +464,7 @@ begin
     and read = false;
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- 출시 보강 스키마는 반복 실행 가능한 migration으로 관리합니다.
+-- Supabase CLI: supabase db push
+-- 파일: supabase/migrations/202608130001_release_foundations.sql

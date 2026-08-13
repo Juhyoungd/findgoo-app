@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 import { seedConversations, seedNotices, seedOffers, seedPosts, seedReports } from "@/src/constants/feature-spec";
+import { createFallbackMemberProfile } from "@/src/constants/member-profiles";
 import { useAuth } from "@/src/state/AuthContext";
 import { useToast } from "@/src/state/ToastContext";
 import { timeAgo, uid } from "@/src/utils/format";
-import type { AppNotice, Conversation, Offer, Post, PostType, ReportReason, ReportStatus, UserReport } from "@/src/types/findgoo";
+import type { AppNotice, Conversation, MemberProfile, Offer, Post, PostType, ReportReason, ReportStatus, Transaction, TransactionStatus, UserReport } from "@/src/types/findgoo";
 
 type NewPostInput = {
   type: PostType;
@@ -19,6 +21,7 @@ type NewPostInput = {
 
 type NewReportInput = {
   postId: string;
+  reportedUserId?: string;
   reportedUser: string;
   reason: ReportReason;
   detail: string;
@@ -84,9 +87,10 @@ type ConversationRow = {
   post: { id: string; title: string; price: number } | null;
 };
 
-function mapConversationRow(row: ConversationRow, myId: string, profileNames: Map<string, string>): Conversation {
+function mapConversationRow(row: ConversationRow, myId: string, profiles: Map<string, MemberProfile>): Conversation {
   const counterpartyId = row.seller_id === myId ? row.buyer_id : row.seller_id;
   const counterpartyLastReadAt = row.seller_id === myId ? row.buyer_last_read_at : row.seller_last_read_at;
+  const counterpartyProfile = profiles.get(counterpartyId) ?? createFallbackMemberProfile(counterpartyId);
   return {
     id: row.id,
     postId: row.post_id,
@@ -96,13 +100,27 @@ function mapConversationRow(row: ConversationRow, myId: string, profileNames: Ma
     buyerId: row.buyer_id,
     counterpartyLastReadAt,
     counterpartyId,
-    counterpartyName: profileNames.get(counterpartyId) ?? "상대방",
+    counterpartyName: counterpartyProfile.nickname,
+    counterpartyProfile,
     lastMessage: row.last_message,
     lastMessageAt: row.last_message_at,
   };
 }
 
 type MessageRow = { id: string; conversation_id: string; sender_id: string; text: string; created_at: string };
+type PublicProfileRow = {
+  id: string;
+  nickname: string | null;
+  avatar_url: string | null;
+  region: string | null;
+  created_at: string;
+  completed_trades: number;
+  good_manner_reviews: number;
+  urgent_successes: number;
+  manner_reports: number;
+};
+
+const SAVED_POSTS_KEY = "@findgoo/saved-post-ids";
 
 // [DB 행 → 화면 타입] offers/reports/notices 테이블의 한 행을 화면이 쓰는 모양으로 바꿔줍니다.
 type OfferRow = {
@@ -135,6 +153,7 @@ type ReportRow = {
   post_id: string;
   reporter_name: string;
   reported_user: string;
+  reported_user_id?: string | null;
   reason: ReportReason;
   detail: string;
   status: ReportStatus;
@@ -147,6 +166,7 @@ function mapReportRow(row: ReportRow): UserReport {
     postId: row.post_id,
     reporter: row.reporter_name,
     reportedUser: row.reported_user,
+    reportedUserId: row.reported_user_id,
     reason: row.reason,
     detail: row.detail,
     created: timeAgo(row.created_at),
@@ -164,6 +184,21 @@ type NoticeRow = {
   target_id: string | null;
   created_at: string;
 };
+
+type TransactionRow = {
+  id: string;
+  post_id: string;
+  offer_id: string;
+  seller_id: string;
+  buyer_id: string;
+  status: TransactionStatus;
+  created_at: string;
+  completed_at: string | null;
+};
+
+function mapTransactionRow(row: TransactionRow): Transaction {
+  return { id: row.id, postId: row.post_id, offerId: row.offer_id, sellerId: row.seller_id, buyerId: row.buyer_id, status: row.status, createdAt: row.created_at, completedAt: row.completed_at };
+}
 
 function mapNoticeRow(row: NoticeRow): AppNotice {
   const target: AppNotice["target"] =
@@ -206,12 +241,16 @@ type AppDataContextValue = {
   offers: Offer[];
   addOffer: (input: NewOfferInput) => Promise<{ error: string | null }>;
   updateOfferStatus: (offerId: string, status: Offer["status"]) => Promise<{ error: string | null }>;
+  transactions: Transaction[];
+  updateTransactionStatus: (transactionId: string, status: TransactionStatus) => Promise<{ error: string | null }>;
   reports: UserReport[];
   addReport: (input: NewReportInput) => Promise<{ error: string | null }>;
   updateReportStatus: (reportId: string, status: ReportStatus) => Promise<{ error: string | null }>;
+  blockedMembers: MemberProfile[];
+  blockMember: (profile: MemberProfile) => Promise<{ error: string | null }>;
+  unblockMember: (userId: string) => Promise<{ error: string | null }>;
   notices: AppNotice[];
   markNoticeRead: (noticeId: string) => void;
-  markAllNoticesRead: () => void;
   unreadNoticeCount: number;
 };
 
@@ -230,8 +269,28 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>(isSupabaseConfigured ? [] : seedConversations);
   const [unreadConversationIds, setUnreadConversationIds] = useState<Set<string>>(new Set());
   const [offers, setOffers] = useState<Offer[]>(isSupabaseConfigured ? [] : seedOffers);
+  const [transactions, setTransactions] = useState<Transaction[]>(isSupabaseConfigured ? [] : seedOffers.filter((offer) => offer.status === "accepted").map((offer, index) => {
+    const post = seedPosts.find((item) => item.id === offer.postId);
+    return {
+      id: `demo-transaction-${index + 1}`,
+      postId: offer.postId,
+      offerId: offer.id,
+      sellerId: post?.authorId ?? "demo-seller",
+      buyerId: offer.offererId ?? "demo-buyer",
+      status: "accepted" as const,
+      createdAt: new Date(Date.now() - (index + 1) * 60 * 60 * 1000).toISOString(),
+    };
+  }));
   const [reports, setReports] = useState<UserReport[]>(isSupabaseConfigured ? [] : seedReports);
   const [notices, setNotices] = useState<AppNotice[]>(isSupabaseConfigured ? [] : seedNotices);
+  const [blockedMembers, setBlockedMembers] = useState<MemberProfile[]>([]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    AsyncStorage.getItem(SAVED_POSTS_KEY).then((value) => {
+      if (value) setSavedPostIds(JSON.parse(value));
+    }).catch(() => undefined);
+  }, []);
 
   const myUserId = session?.user.id;
 
@@ -304,6 +363,45 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
   }, [session]);
 
+  // [거래 상태] 수락된 제안은 transactions 한 건으로 고정하고 이후 진행·완료·취소·분쟁 상태만 바꿉니다.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session) return;
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase.from("transactions").select("*").order("created_at", { ascending: false });
+      if (!cancelled && !error && data) setTransactions((data as TransactionRow[]).map(mapTransactionRow));
+    };
+    load();
+    const channel = supabase.channel("transactions-changes").on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => load()).subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [session]);
+
+  // [차단 회원] 내 차단 목록과 공개 프로필만 가져오고, 피드와 채팅 목록에서 해당 회원을 숨깁니다.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session) return;
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase.from("blocked_users").select("blocked_id").eq("blocker_id", session!.user.id);
+      if (cancelled || error || !data || data.length === 0) {
+        if (!cancelled && !error) setBlockedMembers([]);
+        return;
+      }
+      const ids = data.map((row) => row.blocked_id as string);
+      const { data: rows } = await supabase.rpc("get_public_profiles", { p_ids: ids });
+      if (cancelled) return;
+      setBlockedMembers(((rows ?? []) as PublicProfileRow[]).map((row) => ({
+        id: row.id,
+        nickname: row.nickname || "찾구 회원",
+        avatarUrl: row.avatar_url,
+        recentRegion: row.region || "대전·세종",
+        joinedAt: row.created_at,
+        mannerStats: { completedTrades: Number(row.completed_trades ?? 0), goodMannerReviews: Number(row.good_manner_reviews ?? 0), successfulUrgentMissions: Number(row.urgent_successes ?? 0), mannerReports: Number(row.manner_reports ?? 0) },
+      })));
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [session]);
+
   // [대화방 목록 불러오기] 내가 판매자거나 구매자인 대화방을 모두 가져오고,
   // 새 대화방이 열리거나 메시지가 와서 last_message가 바뀌면 실시간으로 다시 불러옵니다.
   useEffect(() => {
@@ -321,13 +419,28 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       const rows = data as ConversationRow[];
       const counterpartyIds = [...new Set(rows.map((row) => (row.seller_id === myId ? row.buyer_id : row.seller_id)))];
-      let profileNames = new Map<string, string>();
+      let publicProfiles = new Map<string, MemberProfile>();
       if (counterpartyIds.length > 0) {
-        const { data: profileRows } = await supabase.from("profiles").select("id, nickname, name").in("id", counterpartyIds);
-        profileNames = new Map((profileRows ?? []).map((row) => [row.id as string, (row.nickname as string) || (row.name as string) || "상대방"]));
+        const { data: profileRows } = await supabase.rpc("get_public_profiles", { p_ids: counterpartyIds });
+        publicProfiles = new Map(((profileRows ?? []) as PublicProfileRow[]).map((row) => {
+          const profile: MemberProfile = {
+            id: row.id as string,
+            nickname: (row.nickname as string) || "찾구 회원",
+            avatarUrl: (row.avatar_url as string | null) ?? null,
+            recentRegion: (row.region as string) || "대전·세종",
+            joinedAt: (row.created_at as string) || new Date().toISOString(),
+            mannerStats: {
+              completedTrades: Number(row.completed_trades ?? 0),
+              goodMannerReviews: Number(row.good_manner_reviews ?? 0),
+              successfulUrgentMissions: Number(row.urgent_successes ?? 0),
+              mannerReports: Number(row.manner_reports ?? 0),
+            },
+          };
+          return [profile.id, profile];
+        }));
       }
       if (cancelled) return;
-      setConversations(rows.map((row) => mapConversationRow(row, myId, profileNames)));
+      setConversations(rows.map((row) => mapConversationRow(row, myId, publicProfiles)));
     }
 
     load();
@@ -534,9 +647,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const toggleSaved = useCallback(
     (postId: string) => {
       const alreadySaved = savedPostIds.includes(postId);
-      setSavedPostIds((ids) => (alreadySaved ? ids.filter((id) => id !== postId) : [...ids, postId]));
+      const next = alreadySaved ? savedPostIds.filter((id) => id !== postId) : [...savedPostIds, postId];
+      setSavedPostIds(next);
 
-      if (!isSupabaseConfigured || !session) return;
+      if (!isSupabaseConfigured || !session) {
+        AsyncStorage.setItem(SAVED_POSTS_KEY, JSON.stringify(next)).catch(() => setSavedPostIds(savedPostIds));
+        return;
+      }
       if (alreadySaved) {
         supabase
           .from("saved_posts")
@@ -544,18 +661,24 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           .eq("user_id", session.user.id)
           .eq("post_id", postId)
           .then(({ error }) => {
-            if (error) console.log("[saved_posts] 삭제 실패", error.message);
+            if (error) {
+              setSavedPostIds(savedPostIds);
+              showNotification({ title: "찜을 변경하지 못했어요", body: "네트워크를 확인하고 다시 시도해주세요." });
+            }
           });
       } else {
         supabase
           .from("saved_posts")
           .insert({ user_id: session.user.id, post_id: postId })
           .then(({ error }) => {
-            if (error) console.log("[saved_posts] 추가 실패", error.message);
+            if (error) {
+              setSavedPostIds(savedPostIds);
+              showNotification({ title: "찜을 변경하지 못했어요", body: "네트워크를 확인하고 다시 시도해주세요." });
+            }
           });
       }
     },
-    [savedPostIds, session],
+    [savedPostIds, session, showNotification],
   );
 
   // [채팅 시작] 이 글에 대해 나(구매자)와 글쓴이 사이의 대화방을 찾고, 없으면 새로 만듭니다.
@@ -587,7 +710,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           .single();
         if (existingRow) {
           const row = existingRow as ConversationRow;
-          const conversation = mapConversationRow(row, myId, new Map([[post.authorId, post.author]]));
+          const conversation = mapConversationRow(row, myId, new Map([[post.authorId, createFallbackMemberProfile(post.authorId, post.author)]]));
           setConversations((items) => (items.some((c) => c.id === conversation.id) ? items : [conversation, ...items]));
           return { conversationId: row.id, error: null };
         }
@@ -596,7 +719,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       if (error || !data) return { conversationId: null, error: error?.message ?? "채팅을 시작하지 못했어요." };
 
       const row = data as ConversationRow;
-      const conversation = mapConversationRow(row, myId, new Map([[post.authorId, post.author]]));
+      const conversation = mapConversationRow(row, myId, new Map([[post.authorId, createFallbackMemberProfile(post.authorId, post.author)]]));
       setConversations((items) => [conversation, ...items]);
       return { conversationId: row.id, error: null };
     },
@@ -629,21 +752,40 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const updateOfferStatus = useCallback(
     async (offerId: string, status: Offer["status"]) => {
+      const before = offers;
       setOffers((items) => items.map((offer) => (offer.id === offerId ? { ...offer, status } : offer)));
-      if (!isSupabaseConfigured || !session) return { error: null };
+      if (!isSupabaseConfigured || !session) {
+        if (status === "accepted") {
+          const offer = offers.find((item) => item.id === offerId);
+          const post = offer ? posts.find((item) => item.id === offer.postId) : null;
+          if (offer && post) setTransactions((items) => [{ id: uid(), postId: post.id, offerId, sellerId: post.authorId ?? "me", buyerId: offer.offererId ?? "demo", status: "accepted", createdAt: new Date().toISOString() }, ...items]);
+        }
+        return { error: null };
+      }
 
       // 수락은 대화방 자동 생성까지 함께 처리하는 RPC를 통해서만 해요 (판매자는 conversations를
       // 직접 insert할 권한이 없어서, 서버 쪽 함수가 대신 만들어줍니다).
       if (status === "accepted") {
         const { error } = await supabase.rpc("accept_offer", { p_offer_id: offerId });
+        if (error) setOffers(before);
         return { error: error?.message ?? null };
       }
 
       const { error } = await supabase.from("offers").update({ status }).eq("id", offerId);
+      if (error) setOffers(before);
       return { error: error?.message ?? null };
     },
-    [session],
+    [session, offers, posts],
   );
+
+  const updateTransactionStatus = useCallback(async (transactionId: string, status: TransactionStatus) => {
+    const before = transactions;
+    setTransactions((items) => items.map((item) => item.id === transactionId ? { ...item, status, completedAt: status === "completed" ? new Date().toISOString() : item.completedAt } : item));
+    if (!isSupabaseConfigured || !session) return { error: null };
+    const { error } = await supabase.rpc("update_transaction_status", { p_transaction_id: transactionId, p_status: status });
+    if (error) setTransactions(before);
+    return { error: error?.message ?? null };
+  }, [session, transactions]);
 
   const addReport = useCallback(
     async (input: NewReportInput) => {
@@ -656,7 +798,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from("reports")
-        .insert({ post_id: input.postId, reporter_id: session.user.id, reporter_name: reporterName, reported_user: input.reportedUser, reason: input.reason, detail: input.detail })
+        .insert({ post_id: input.postId, reporter_id: session.user.id, reporter_name: reporterName, reported_user: input.reportedUser, reported_user_id: input.reportedUserId ?? null, reason: input.reason, detail: input.detail })
         .select("*")
         .single();
 
@@ -692,26 +834,28 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [session],
   );
 
-  // [전체 알림 화면 진입] 헤더의 알림 숫자는 "안 읽은 개수"가 아니라 "전체 알림 화면을 아직 안
-  // 열어봤는지"를 뜻하도록, 그 화면을 열면 그 시점까지 온 알림을 한 번에 읽음 처리합니다.
-  const markAllNoticesRead = useCallback(() => {
-    setNotices((items) => {
-      const unreadIds = items.filter((notice) => !notice.read).map((notice) => notice.id);
-      if (unreadIds.length === 0) return items;
-      if (isSupabaseConfigured && session) {
-        supabase
-          .from("notices")
-          .update({ read: true })
-          .in("id", unreadIds)
-          .then(({ error }) => {
-            if (error) console.log("[notices] 전체 읽음 처리 실패", error.message);
-          });
-      }
-      return items.map((notice) => (notice.read ? notice : { ...notice, read: true }));
-    });
-  }, [session]);
-
   const unreadNoticeCount = useMemo(() => notices.filter((notice) => !notice.read).length, [notices]);
+  const blockedIds = useMemo(() => new Set(blockedMembers.map((member) => member.id)), [blockedMembers]);
+  const visiblePosts = useMemo(() => posts.filter((post) => !post.authorId || !blockedIds.has(post.authorId)), [posts, blockedIds]);
+  const visibleConversations = useMemo(() => conversations.filter((conversation) => !blockedIds.has(conversation.counterpartyId)), [conversations, blockedIds]);
+
+  const blockMember = useCallback(async (member: MemberProfile) => {
+    if (blockedMembers.some((item) => item.id === member.id)) return { error: null };
+    setBlockedMembers((items) => [member, ...items]);
+    if (!isSupabaseConfigured || !session) return { error: null };
+    const { error } = await supabase.from("blocked_users").insert({ blocker_id: session.user.id, blocked_id: member.id });
+    if (error) setBlockedMembers((items) => items.filter((item) => item.id !== member.id));
+    return { error: error?.message ?? null };
+  }, [blockedMembers, session]);
+
+  const unblockMember = useCallback(async (userId: string) => {
+    const before = blockedMembers;
+    setBlockedMembers((items) => items.filter((item) => item.id !== userId));
+    if (!isSupabaseConfigured || !session) return { error: null };
+    const { error } = await supabase.from("blocked_users").delete().eq("blocker_id", session.user.id).eq("blocked_id", userId);
+    if (error) setBlockedMembers(before);
+    return { error: error?.message ?? null };
+  }, [blockedMembers, session]);
 
   const value = useMemo(
     () => ({
@@ -719,11 +863,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       region: selectedRegions[0] || "대전 유성구 봉명동",
       selectedRegions,
       setSelectedRegions,
-      posts,
+      posts: visiblePosts,
       addPost,
       savedPostIds,
       toggleSaved,
-      conversations,
+      conversations: visibleConversations,
       startOrGetConversation,
       unreadConversationIds,
       activeConversationId,
@@ -731,22 +875,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       offers,
       addOffer,
       updateOfferStatus,
+      transactions,
+      updateTransactionStatus,
       reports,
       addReport,
       updateReportStatus,
+      blockedMembers,
+      blockMember,
+      unblockMember,
       notices,
       markNoticeRead,
-      markAllNoticesRead,
       unreadNoticeCount,
     }),
     [
       profile,
       selectedRegions,
-      posts,
+      visiblePosts,
       addPost,
       savedPostIds,
       toggleSaved,
-      conversations,
+      visibleConversations,
       startOrGetConversation,
       unreadConversationIds,
       activeConversationId,
@@ -754,12 +902,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       offers,
       addOffer,
       updateOfferStatus,
+      transactions,
+      updateTransactionStatus,
       reports,
       addReport,
       updateReportStatus,
+      blockedMembers,
+      blockMember,
+      unblockMember,
       notices,
       markNoticeRead,
-      markAllNoticesRead,
       unreadNoticeCount,
     ],
   );

@@ -14,7 +14,7 @@ const reasons: ReportReason[] = ["사기 의심", "욕설·비방", "거래 불�
 export default function ReportUserScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  const { postId, reportedUserId } = useLocalSearchParams<{ postId: string; reportedUserId?: string }>();
   const { posts, addReport } = useAppData();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [detail, setDetail] = useState("");
@@ -27,7 +27,7 @@ export default function ReportUserScreen() {
     if (!reason || !post || submitting) return;
     try {
       setSubmitting(true);
-      const { error } = await addReport({ postId: post.id, reportedUser: counterparty, reason, detail: detail.trim() || "추가 설명 없음" });
+      const { error } = await addReport({ postId: post.id, reportedUser: counterparty, reportedUserId, reason, detail: detail.trim() || "추가 설명 없음" });
       if (error) return Alert.alert("신고 접수 실패", error);
       setSubmitted(true);
     } finally {

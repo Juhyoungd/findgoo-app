@@ -14,7 +14,7 @@ import { getAuthErrorMessage, isValidEmail } from "@/src/utils/validation";
 export default function LoginScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { session, isAdmin, signIn } = useAuth();
+  const { session, isAdmin, signIn, signInWithSocial } = useAuth();
   const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +37,16 @@ export default function LoginScreen() {
     const { error } = await signIn(email.trim(), password);
     setLoading(false);
     if (error) showToast(getAuthErrorMessage(error, "login"));
+  }
+
+  async function socialLogin(provider: "google" | "naver") {
+    setLoading(true);
+    try {
+      const { error } = await signInWithSocial(provider);
+      if (error) showToast(getAuthErrorMessage(error, "login"));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -76,6 +86,18 @@ export default function LoginScreen() {
             <Pressable onPress={submit} disabled={loading} style={[s.submit, { backgroundColor: palette.lime, opacity: loading ? 0.7 : 1 }]}>
               {loading ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "700", fontSize: 15 }}>로그인</Text>}
             </Pressable>
+
+            <View style={[socialStyles.dividerRow, { borderTopColor: palette.line }]}>
+              <Text style={[socialStyles.dividerText, { color: palette.muted, backgroundColor: palette.white }]}>간편 로그인</Text>
+            </View>
+            <View style={socialStyles.row}>
+              <Pressable onPress={() => socialLogin("google")} disabled={loading} style={[socialStyles.button, { backgroundColor: palette.white, borderColor: palette.line }]} accessibilityLabel="구글 계정으로 로그인">
+                <Text style={[socialStyles.googleMark, { color: palette.ink }]}>G</Text><Text style={[socialStyles.label, { color: palette.ink }]}>Google</Text>
+              </Pressable>
+              <Pressable onPress={() => socialLogin("naver")} disabled={loading} style={[socialStyles.button, { backgroundColor: "#03C75A", borderColor: "#03C75A" }]} accessibilityLabel="네이버 계정으로 로그인">
+                <Text style={socialStyles.naverMark}>N</Text><Text style={[socialStyles.label, { color: "white" }]}>네이버</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={s.linkRow}>
@@ -92,3 +114,13 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
+
+const socialStyles = {
+  dividerRow: { borderTopWidth: 1, marginTop: 12, alignItems: "center" as const },
+  dividerText: { paddingHorizontal: 10, fontSize: 9, fontWeight: "700" as const, transform: [{ translateY: -7 }] },
+  row: { flexDirection: "row" as const, gap: 8 },
+  button: { flex: 1, minHeight: 44, borderWidth: 1, borderRadius: 12, flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "center" as const, gap: 8 },
+  googleMark: { fontSize: 16, fontWeight: "900" as const },
+  naverMark: { color: "white", fontSize: 15, fontWeight: "900" as const },
+  label: { fontSize: 11, fontWeight: "800" as const },
+};

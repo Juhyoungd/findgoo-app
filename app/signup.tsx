@@ -9,19 +9,20 @@ import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { authStyles as s } from "@/src/components/auth/authStyles";
 import { useToast } from "@/src/state/ToastContext";
-import { getAuthErrorMessage, getPasswordRuleError, isValidEmail, koreanMobilePattern } from "@/src/utils/validation";
+import { getAuthErrorMessage, getNameRuleError, getNicknameRuleError, getPasswordRuleError, isValidEmail, koreanMobilePattern } from "@/src/utils/validation";
 
 // [회원가입] 이름/이메일/비밀번호/휴대폰 인증/약관 동의로 구성된 보편적인 가입 폼 배치
 // 로그인/아이디찾기와 같은 톤을 유지하면서, 한 화면에 들어오도록 여백과 요소 높이를 살짝만 줄였습니다.
 // 실제 계정 생성은 Supabase Auth(이메일/비밀번호)로 처리하고, 이름/휴대폰은 profiles 테이블에 저장됩니다.
-// 휴대폰 인증은 아직 SMS 연동 전이라 베타 목업(6자리 아무 값 통과)입니다.
+// 휴대폰 인증은 Supabase Phone Auth가 실제 SMS를 보내고 확인한 세션으로만 가입을 완료합니다.
 export default function SignupScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { signUp, signOut } = useAuth();
+  const { signUp, signOut, requestPhoneVerification, verifyPhoneCode } = useAuth();
   const { showToast } = useToast();
 
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,6 +30,7 @@ export default function SignupScreen() {
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [phoneLoading, setPhoneLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -43,22 +45,33 @@ export default function SignupScreen() {
     setAgreeMarketing(next);
   }
 
-  function requestCode() {
+  async function requestCode() {
     if (!phone.trim()) return showToast("휴대폰번호를 입력해주세요.");
     if (!koreanMobilePattern.test(phone)) return showToast("휴대폰번호 형식을 확인해주세요. '-' 없이 입력해주세요.");
+    setPhoneLoading(true);
+    const { error } = await requestPhoneVerification(phone);
+    setPhoneLoading(false);
+    if (error) return showToast(getAuthErrorMessage(error, "signup"));
     setCodeSent(true);
-    showToast("인증번호를 보냈어요. 베타에서는 아무 6자리나 입력하세요.");
+    showToast("문자로 받은 인증번호 6자리를 입력해주세요.");
   }
 
-  function confirmCode() {
+  async function confirmCode() {
     if (!codeSent) return showToast("먼저 인증번호 전송을 눌러주세요.");
     if (code.length !== 6) return showToast("인증번호 6자리를 입력해주세요.");
+    setPhoneLoading(true);
+    const { error } = await verifyPhoneCode(phone, code);
+    setPhoneLoading(false);
+    if (error) return showToast("인증번호가 올바르지 않거나 만료됐어요. 다시 확인해주세요.");
     setVerified(true);
     showToast("휴대폰 인증이 확인됐어요.");
   }
 
   async function submit() {
-    if (name.trim().length < 2) return showToast("이름을 2자 이상 입력해주세요.");
+    const nameError = getNameRuleError(name);
+    if (nameError) return showToast(nameError);
+    const nicknameError = getNicknameRuleError(nickname);
+    if (nicknameError) return showToast(nicknameError);
     if (!email.trim()) return showToast("이메일을 입력해주세요.");
     if (!isValidEmail(email)) return showToast("이메일 주소 형식이 올바르지 않아요.");
     const passwordError = getPasswordRuleError(password);
@@ -69,20 +82,15 @@ export default function SignupScreen() {
     if (!agreeTerms || !agreePrivacy) return showToast("필수 약관에 동의해주세요.");
 
     setLoading(true);
-    console.log("[signup] submit 시작", { email: email.trim() });
     try {
-      const { error } = await signUp({ email: email.trim(), password, name: name.trim(), phone: phone.trim() });
-      console.log("[signup] signUp 결과", { error });
+      const { error } = await signUp({ email: email.trim(), password, name: name.trim(), nickname: nickname.trim(), phone: phone.trim() });
       if (error) return showToast(getAuthErrorMessage(error, "signup"));
-    } catch (err) {
-      console.log("[signup] signUp 예외", err);
+    } catch {
       showToast("가입 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
       return;
     } finally {
       setLoading(false);
     }
-    console.log("[signup] 성공, 로그인으로 이동");
-
     // "이메일 확인" 설정이 꺼져있으면 signUp() 시점에 Supabase가 바로 로그인 세션까지 만들어줘요.
     // 그 상태로 /login에 가면 로그인 화면의 "이미 로그인돼있으면 메인으로" 로직 때문에
     // 곧장 메인으로 튕겨버리니, 로그인 화면을 보여주려면 먼저 로그아웃시켜야 해요.
@@ -114,6 +122,16 @@ export default function SignupScreen() {
               onChangeText={setName}
               placeholder="이름"
               placeholderTextColor={palette.muted}
+              style={[s.input, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
+            />
+
+            <TextInput
+              value={nickname}
+              onChangeText={setNickname}
+              placeholder="닉네임 (앱 활동명, 2~12자)"
+              placeholderTextColor={palette.muted}
+              autoCapitalize="none"
+              maxLength={12}
               style={[s.input, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
             />
 
@@ -161,8 +179,8 @@ export default function SignupScreen() {
                 maxLength={11}
                 style={[s.input, s.inlineInput, compact.input, { color: palette.ink, borderColor: palette.line, backgroundColor: palette.paper }]}
               />
-              <Pressable onPress={requestCode} style={[s.pillButton, compact.pillButton, { borderColor: palette.line, backgroundColor: palette.white }]}>
-                <Text style={[s.pillButtonText, { color: palette.ink }]}>{codeSent ? "재전송" : "인증번호 전송"}</Text>
+              <Pressable onPress={requestCode} disabled={phoneLoading || verified} style={[s.pillButton, compact.pillButton, { borderColor: palette.line, backgroundColor: palette.white, opacity: phoneLoading || verified ? 0.55 : 1 }]}>
+                <Text style={[s.pillButtonText, { color: palette.ink }]}>{phoneLoading ? "전송 중" : codeSent ? "재전송" : "인증번호 전송"}</Text>
               </Pressable>
             </View>
 
@@ -177,7 +195,7 @@ export default function SignupScreen() {
                 editable={!verified}
                 style={[s.input, s.inlineInput, compact.input, { color: palette.ink, borderColor: verified ? palette.lime : palette.line, backgroundColor: palette.paper }]}
               />
-              <Pressable onPress={confirmCode} style={[s.pillButton, compact.pillButton, { borderColor: verified ? palette.lime : palette.line, backgroundColor: verified ? palette.lime : palette.white }]}>
+              <Pressable onPress={confirmCode} disabled={phoneLoading || verified} style={[s.pillButton, compact.pillButton, { borderColor: verified ? palette.lime : palette.line, backgroundColor: verified ? palette.lime : palette.white, opacity: phoneLoading ? 0.55 : 1 }]}>
                 <Text style={[s.pillButtonText, { color: verified ? palette.white : palette.ink }]}>{verified ? "완료" : "확인"}</Text>
               </Pressable>
             </View>

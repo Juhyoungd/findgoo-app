@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { appIcons } from "@/src/assets/app-icons";
 import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
-import { AppHeader } from "@/src/components/layout/AppHeader";
+import { ProfileAvatar } from "@/src/components/profile/ProfileAvatar";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { timeAgo, won } from "@/src/utils/format";
@@ -25,8 +25,7 @@ export default function ChatListScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }}>
-      <AppHeader />
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["left", "right"]}>
       <Text style={[styles.heading, { color: palette.ink }]}>1:1 거래 채팅</Text>
       <View style={[styles.note, { backgroundColor: palette.blue }]}>
         <Text style={{ color: palette.ink, fontSize: 12 }}>글에 관심 있는 상대와 1:1로 대화할 수 있어요.</Text>
@@ -46,9 +45,7 @@ export default function ChatListScreen() {
               style={[styles.row, { backgroundColor: unread ? `${palette.orange}0d` : palette.white, borderColor: unread ? palette.orange : palette.line }]}
             >
               <View>
-                <View style={[styles.avatar, { backgroundColor: palette.blue }]}>
-                  <Text style={{ color: palette.lime, fontWeight: "700" }}>{item.counterpartyName[0]}</Text>
-                </View>
+                <ProfileAvatar nickname={item.counterpartyName} avatarUrl={item.counterpartyProfile.avatarUrl} size={40} />
                 {unread && <View style={[styles.unreadDot, { backgroundColor: palette.orange, borderColor: palette.white }]} />}
               </View>
               <View style={{ flex: 1 }}>
@@ -81,7 +78,6 @@ const styles = StyleSheet.create({
   listContent: { padding: 24, paddingBottom: 110 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 14, padding: 14 },
   rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   unreadDot: { position: "absolute", top: -2, right: -2, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
   rowTitle: { fontSize: 14, fontWeight: "700" },
   empty: { alignItems: "center", gap: 8, paddingVertical: 60 },

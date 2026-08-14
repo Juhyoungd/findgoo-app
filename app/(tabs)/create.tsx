@@ -3,7 +3,6 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, S
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { categories } from "@/src/constants/feature-spec";
-import { AppHeader } from "@/src/components/layout/AppHeader";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useToast } from "@/src/state/ToastContext";
@@ -66,8 +65,7 @@ export default function CreateScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
-      <AppHeader />
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["left", "right"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={[styles.heading, { color: palette.ink }]}>{type === "buy" ? "구매글 작성" : "급구 작성"}</Text>

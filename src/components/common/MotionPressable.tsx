@@ -13,6 +13,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { useTheme } from "@/src/theme/ThemeContext";
 
 type HapticKind = "none" | "selection" | "light" | "medium";
 type Ripple = { id: number; x: number; y: number; radius: number; progress: Animated.Value };
@@ -32,7 +33,7 @@ export function MotionPressable({
   style,
   pressedScale = 0.97,
   haptic = "selection",
-  rippleColor = "rgba(112, 86, 130, 0.16)",
+  rippleColor,
   disabled,
   children,
   onLayout,
@@ -40,6 +41,8 @@ export function MotionPressable({
   onPressOut,
   ...props
 }: MotionPressableProps) {
+  const { palette } = useTheme();
+  const resolvedRippleColor = rippleColor ?? `${palette.lime}2b`;
   const scale = useRef(new Animated.Value(1)).current;
   const layout = useRef({ width: 0, height: 0 });
   const rippleId = useRef(0);
@@ -123,7 +126,7 @@ export function MotionPressable({
                 width: ripple.radius * 2,
                 height: ripple.radius * 2,
                 borderRadius: ripple.radius,
-                backgroundColor: rippleColor,
+                backgroundColor: resolvedRippleColor,
                 opacity: ripple.progress.interpolate({ inputRange: [0, 0.72, 1], outputRange: [0.5, 0.2, 0] }),
                 transform: [{ scale: ripple.progress.interpolate({ inputRange: [0, 1], outputRange: [0.04, 1] }) }],
               },

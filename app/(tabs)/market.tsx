@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { appIcons } from "@/src/assets/app-icons";
 import { AppIcon } from "@/src/components/common/AppIcon";
-import { AppHeader } from "@/src/components/layout/AppHeader";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { PostCard } from "@/src/components/market/PostCard";
 import { PostSearchBar } from "@/src/components/market/PostSearchBar";
@@ -35,8 +34,7 @@ export default function MarketScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
-      <AppHeader />
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["left", "right"]}>
       <View style={styles.heading}>
         <Text style={[styles.headingLabel, { color: palette.lime }]}>NEARBY</Text>
         <Text style={[styles.headingTitle, { color: palette.ink }]}>지금 필요한 도움</Text>

@@ -1,7 +1,5 @@
-import { useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { appIcons } from "@/src/assets/app-icons";
@@ -15,11 +13,7 @@ import { useTheme } from "@/src/theme/ThemeContext";
 export function MyNotificationsScreen() {
   const { palette } = useTheme();
   const router = useRouter();
-  const { notices, markNoticeRead, markAllNoticesRead, unreadNoticeCount } = useAppData();
-
-  // 헤더의 알림 숫자는 "이 화면을 열어봤는지"를 뜻하도록, 화면을 열 때마다 그 시점까지
-  // 온 알림을 한 번에 읽음 처리합니다.
-  useFocusEffect(useCallback(() => { markAllNoticesRead(); }, [markAllNoticesRead]));
+  const { notices, markNoticeRead, unreadNoticeCount } = useAppData();
 
   function goBack() {
     if (router.canGoBack()) router.back();

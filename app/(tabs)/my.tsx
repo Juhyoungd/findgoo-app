@@ -5,9 +5,10 @@ import { useRouter, type Href } from "expo-router";
 import { appIcons, type AppIconName } from "@/src/assets/app-icons";
 import { AppIcon } from "@/src/components/common/AppIcon";
 import { MotionPressable } from "@/src/components/common/MotionPressable";
-import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useAppData } from "@/src/state/AppDataContext";
 import { useAuth } from "@/src/state/AuthContext";
+import { ProfileAvatar } from "@/src/components/profile/ProfileAvatar";
+import { calculateMannerScore } from "@/src/utils/manner";
 import { themeOptions } from "@/src/theme/palettes";
 import { useTheme } from "@/src/theme/ThemeContext";
 
@@ -25,6 +26,7 @@ const settingMenus: Array<{ icon: string; label: string; caption: string; route:
   { icon: "⌖", label: "활동 지역", caption: "대전·세종 최대 3곳", route: "/profile/region" },
   { icon: "⌕", label: "관심 설정", caption: "카테고리와 알림 키워드", route: "/profile/preferences" },
   { icon: "⊘", label: "차단 회원", caption: "차단한 이용자 관리", route: "/profile/blocked" },
+  { icon: "－", label: "회원 탈퇴", caption: "계정과 개인정보 삭제", route: "/profile/delete-account" },
 ];
 
 const helpMenus: Array<{ icon: string; label: string; caption: string; route: Href }> = [
@@ -38,7 +40,7 @@ const helpMenus: Array<{ icon: string; label: string; caption: string; route: Hr
 export default function MyScreen() {
   const { palette, activeTheme, setTheme } = useTheme();
   const { nickname, region, posts, savedPostIds, unreadNoticeCount } = useAppData();
-  const { signOut, isAdmin } = useAuth();
+  const { signOut, isAdmin, profile } = useAuth();
   const router = useRouter();
 
   const myPosts = useMemo(() => posts.filter((post) => post.mine), [posts]);
@@ -60,15 +62,11 @@ export default function MyScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["top"]}>
-      <AppHeader />
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.paper }} edges={["left", "right"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.profileCard, { backgroundColor: palette.white, borderColor: palette.line }]}>
-          <MotionPressable onPress={() => router.push("/profile")} haptic="light" style={[styles.avatar, { backgroundColor: palette.blue }]} accessibilityLabel="프로필 사진과 내 정보 변경">
-            <Text style={{ color: palette.lime, fontSize: 20, fontWeight: "900" }}>{nickname[0]}</Text>
-            <View style={[styles.cameraBadge, { backgroundColor: palette.lime }]}><Text style={{ color: "white", fontSize: 8 }}>＋</Text></View>
-          </MotionPressable>
-          <View style={{ flex: 1 }}><Text style={[styles.nickname, { color: palette.ink }]}>{nickname}</Text><Text style={{ color: palette.muted, fontSize: 11, marginTop: 3 }}>⌖ {region}</Text><Text style={{ color: palette.lime, fontSize: 9, fontWeight: "800", marginTop: 5 }}>신뢰도 36.5 · 베타 회원</Text></View>
+          <ProfileAvatar nickname={nickname} avatarUrl={profile?.avatarUrl} size={50} onPress={() => router.push("/profile")} accessibilityLabel="프로필 사진과 내 정보 변경" />
+          <View style={{ flex: 1 }}><Text style={[styles.nickname, { color: palette.ink }]}>{nickname}</Text><Text style={{ color: palette.muted, fontSize: 11, marginTop: 3 }}>⌖ {region}</Text><Text style={{ color: palette.limeDark, fontSize: 9, fontWeight: "800", marginTop: 5 }}>매너 온도 {calculateMannerScore(profile?.mannerStats ?? { completedTrades: 0, goodMannerReviews: 0, successfulUrgentMissions: 0, mannerReports: 0 }).toFixed(1)}°</Text></View>
           <MotionPressable onPress={() => router.push("/profile")} style={[styles.editButton, { borderColor: palette.line }]}><Text style={{ color: palette.muted, fontSize: 9, fontWeight: "800" }}>프로필</Text></MotionPressable>
         </View>
 
@@ -143,8 +141,6 @@ function SummaryAction({ icon, label, value, route, palette, onNavigate, hasUpda
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 120, gap: 18 },
   profileCard: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 18, padding: 15 },
-  avatar: { position: "relative", width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center" },
-  cameraBadge: { position: "absolute", right: -2, bottom: -1, width: 17, height: 17, borderRadius: 9, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "white" },
   nickname: { fontSize: 16, fontWeight: "900" },
   editButton: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   summaryRow: { flexDirection: "row", gap: 7 },

@@ -1,15 +1,16 @@
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { BackButton } from "@/src/components/common/BackButton";
 import { AppHeader } from "@/src/components/layout/AppHeader";
 import { useTheme } from "@/src/theme/ThemeContext";
 
 // [상세 화면] 마이페이지·고객센터 하위 화면의 공통 헤더와 모바일 스크롤 여백입니다.
-export function DetailScaffold({ title, eyebrow, children }: { title: string; eyebrow: string; children: ReactNode }) {
+export function DetailScaffold({ title, eyebrow, children, footer }: { title: string; eyebrow: string; children: ReactNode; footer?: ReactNode }) {
   const { palette } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const goBack = () => router.canGoBack() ? router.back() : router.replace("/my");
 
   return (
@@ -19,7 +20,8 @@ export function DetailScaffold({ title, eyebrow, children }: { title: string; ey
         <BackButton onPress={goBack} />
         <View><Text style={[styles.eyebrow, { color: palette.lime }]}>{eyebrow}</Text><Text style={[styles.title, { color: palette.ink }]}>{title}</Text></View>
       </View>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, footer ? styles.contentWithFooter : undefined]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+      {footer ? <View style={[styles.footer, { backgroundColor: palette.white, borderTopColor: palette.line, paddingBottom: Math.max(insets.bottom, 14) }]}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
@@ -28,5 +30,8 @@ const styles = StyleSheet.create({
   header: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, paddingHorizontal: 20 },
   eyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 1.1 },
   title: { fontSize: 19, fontWeight: "900", marginTop: 2 },
+  scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 40, gap: 14 },
+  contentWithFooter: { paddingBottom: 24 },
+  footer: { borderTopWidth: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14 },
 });

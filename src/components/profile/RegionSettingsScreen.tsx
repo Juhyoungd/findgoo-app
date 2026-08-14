@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Location from "expo-location";
 import { DetailScaffold } from "@/src/components/common/DetailScaffold";
 import { MotionPressable } from "@/src/components/common/MotionPressable";
@@ -11,6 +11,7 @@ import {
   type ServiceCity,
 } from "@/src/constants/regions";
 import { useAppData } from "@/src/state/AppDataContext";
+import { useToast } from "@/src/state/ToastContext";
 import { useTheme } from "@/src/theme/ThemeContext";
 
 const cityOptions: readonly ServiceCity[] = ["대전", "세종"];
@@ -19,11 +20,14 @@ const cityOptions: readonly ServiceCity[] = ["대전", "세종"];
 export function RegionSettingsScreen() {
   const { palette } = useTheme();
   const { selectedRegions, setSelectedRegions } = useAppData();
+  const { showToast } = useToast();
   const initialCity: ServiceCity = selectedRegions[0]?.startsWith("세종") ? "세종" : "대전";
   const [activeCity, setActiveCity] = useState<ServiceCity>(initialCity);
   const [expandedGroup, setExpandedGroup] = useState(`${initialCity}|${initialCity === "대전" ? "유성구" : "동 지역"}`);
   const [query, setQuery] = useState("");
   const [locating, setLocating] = useState(false);
+  const [draftRegions, setDraftRegions] = useState(selectedRegions);
+  const isDirty = draftRegions.join("|") !== selectedRegions.join("|");
 
   const groups = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase("ko-KR");
@@ -46,20 +50,31 @@ export function RegionSettingsScreen() {
   }
 
   function toggleRegion(label: string) {
-    if (selectedRegions.includes(label)) {
-      if (selectedRegions.length === 1) return Alert.alert("활동 지역", "활동 지역은 최소 1곳이 필요해요.");
-      setSelectedRegions(selectedRegions.filter((item) => item !== label));
+    if (draftRegions.includes(label)) {
+      if (draftRegions.length === 1) return Alert.alert("활동 지역", "활동 지역은 최소 1곳이 필요해요.");
+      setDraftRegions(draftRegions.filter((item) => item !== label));
       return;
     }
-    if (selectedRegions.length >= 3) return Alert.alert("최대 3곳", "활동 지역은 최대 3곳까지 설정할 수 있어요.");
-    setSelectedRegions([...selectedRegions, label]);
+    if (draftRegions.length >= 3) return Alert.alert("최대 3곳", "활동 지역은 최대 3곳까지 설정할 수 있어요.");
+    setDraftRegions([...draftRegions, label]);
+  }
+
+  function applyRegions() {
+    if (!isDirty) return;
+    setSelectedRegions(draftRegions);
+    showToast("활동 지역을 저장했어요.");
   }
 
   async function useCurrentLocation() {
     try {
       setLocating(true);
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) return Alert.alert("위치 서비스가 꺼져 있어요", "기기의 위치 서비스를 켠 뒤 다시 시도해주세요.", [{ text: "확인" }]);
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== "granted") return Alert.alert("위치 권한 필요", "현재 위치로 지역을 찾으려면 위치 권한을 허용해주세요.");
+      if (permission.status !== "granted") {
+        if (!permission.canAskAgain) return Alert.alert("위치 권한이 차단됐어요", "기기 설정에서 찾구의 위치 권한을 허용해주세요.", [{ text: "취소", style: "cancel" }, { text: "설정 열기", onPress: () => Linking.openSettings() }]);
+        return Alert.alert("위치 권한 필요", "현재 위치로 지역을 찾으려면 위치 권한을 허용해주세요.");
+      }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude, longitude } = position.coords;
       if (latitude < 36.15 || latitude > 36.72 || longitude < 127.03 || longitude > 127.58) {
@@ -72,23 +87,38 @@ export function RegionSettingsScreen() {
         if (address) matchedRegion = findRegionFromAddress(address);
       }
       const nearest = matchedRegion ?? findNearestServiceRegion(latitude, longitude);
-      setSelectedRegions([nearest.label, ...selectedRegions.filter((item) => item !== nearest.label)].slice(0, 3));
+      setDraftRegions([nearest.label, ...draftRegions.filter((item) => item !== nearest.label)].slice(0, 3));
       setActiveCity(nearest.city);
       setExpandedGroup(`${nearest.city}|${nearest.district}`);
-      Alert.alert("가까운 지역을 찾았어요", `${nearest.label}을 대표 활동 지역으로 설정했어요.`);
-    } catch {
-      Alert.alert("위치를 확인하지 못했어요", "잠시 후 다시 시도하거나 지역을 직접 선택해주세요.");
+      showToast(`${nearest.label}을 선택했어요. 적용하기를 눌러 저장하세요.`);
+    } catch (error) {
+      const message = error instanceof Error && error.message.toLowerCase().includes("timeout") ? "위치 확인 시간이 초과됐어요. GPS 신호가 잘 잡히는 곳에서 다시 시도해주세요." : "인터넷과 GPS 상태를 확인하거나 지역을 직접 선택해주세요.";
+      Alert.alert("위치를 확인하지 못했어요", message);
     } finally {
       setLocating(false);
     }
   }
 
   return (
-    <DetailScaffold title="활동 지역" eyebrow="REGION">
+    <DetailScaffold
+      title="활동 지역"
+      eyebrow="REGION"
+      footer={
+        <MotionPressable
+          onPress={applyRegions}
+          disabled={!isDirty}
+          haptic="medium"
+          style={[styles.applyButton, { backgroundColor: isDirty ? palette.lime : palette.blue, opacity: isDirty ? 1 : 0.72 }]}
+          accessibilityLabel={isDirty ? "선택한 활동 지역 적용하기" : "활동 지역 적용 완료"}
+        >
+          <Text style={[styles.applyText, { color: isDirty ? palette.white : palette.ink }]}>{isDirty ? "적용하기" : "✓ 적용 완료"}</Text>
+        </MotionPressable>
+      }
+    >
       <View style={[styles.summary, { backgroundColor: palette.white, borderColor: palette.line }]}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.summaryTitle, { color: palette.ink }]}>선택한 지역 {selectedRegions.length}/3</Text>
-          <Text style={[styles.summaryBody, { color: palette.muted }]}>첫 번째 지역이 홈과 새 글의 기본 지역이에요.</Text>
+          <Text style={[styles.summaryTitle, { color: palette.ink }]}>선택한 지역 {draftRegions.length}/3</Text>
+          <Text style={[styles.summaryBody, { color: palette.muted }]}>{isDirty ? "변경 내용은 적용하기를 눌러야 저장돼요." : "저장된 지역이 홈과 새 글에 적용되고 있어요."}</Text>
         </View>
         <MotionPressable onPress={useCurrentLocation} disabled={locating} haptic="medium" style={[styles.gpsButton, { backgroundColor: palette.lime }]} accessibilityLabel="GPS로 가까운 지역 찾기">
           {locating ? <ActivityIndicator size="small" color="white" /> : <Text style={styles.gpsText}>GPS 찾기</Text>}
@@ -96,7 +126,7 @@ export function RegionSettingsScreen() {
       </View>
 
       <View style={styles.selectedWrap}>
-        {selectedRegions.map((item, index) => (
+        {draftRegions.map((item, index) => (
           <MotionPressable key={item} onPress={() => toggleRegion(item)} style={[styles.selectedChip, { backgroundColor: index === 0 ? palette.ink : palette.blue }]} accessibilityLabel={`${item} 선택 해제`}>
             <Text style={{ color: index === 0 ? "white" : palette.ink, fontSize: 9, fontWeight: "800" }}>{index === 0 ? "대표 · " : ""}{item} ×</Text>
           </MotionPressable>
@@ -137,7 +167,7 @@ export function RegionSettingsScreen() {
         const key = `${group.city}|${group.district}`;
         const open = query.trim().length > 0 || expandedGroup === key;
         const regionItems = serviceRegions.filter((item) => item.city === group.city && item.district === group.district && group.areas.includes(item.dong));
-        const selectedCount = regionItems.filter((item) => selectedRegions.includes(item.label)).length;
+        const selectedCount = regionItems.filter((item) => draftRegions.includes(item.label)).length;
         return (
           <View key={key} style={[styles.group, { backgroundColor: palette.white, borderColor: palette.line }]}>
             <MotionPressable onPress={() => setExpandedGroup(open ? "" : key)} style={styles.groupHeader} accessibilityLabel={`${group.district} ${open ? "접기" : "펼치기"}`}>
@@ -154,7 +184,7 @@ export function RegionSettingsScreen() {
             {open && (
               <View style={[styles.dongs, { borderTopColor: palette.line }]}>
                 {regionItems.map((item) => {
-                  const selected = selectedRegions.includes(item.label);
+                  const selected = draftRegions.includes(item.label);
                   return (
                     <MotionPressable key={item.label} onPress={() => toggleRegion(item.label)} style={[styles.dong, { backgroundColor: selected ? palette.lime : palette.paper, borderColor: selected ? palette.lime : palette.line }]} accessibilityLabel={`${item.label} ${selected ? "선택 해제" : "선택"}`}>
                       <Text style={{ color: selected ? "white" : palette.muted, fontSize: 10, fontWeight: "800" }}>{item.dong}</Text>
@@ -203,4 +233,6 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", gap: 5, borderWidth: 1, borderStyle: "dashed", borderRadius: 16, padding: 28 },
   emptyTitle: { fontSize: 13, fontWeight: "800" },
   emptyBody: { fontSize: 10 },
+  applyButton: { minHeight: 50, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  applyText: { fontSize: 14, fontWeight: "900" },
 });

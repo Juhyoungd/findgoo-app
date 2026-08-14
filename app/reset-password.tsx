@@ -6,6 +6,7 @@ import { useTheme } from "@/src/theme/ThemeContext";
 import { supabase } from "@/src/lib/supabase";
 import { BackgroundBlobs } from "@/src/components/common/BackgroundBlobs";
 import { authStyles as s } from "@/src/components/auth/authStyles";
+import { getPasswordRuleError } from "@/src/utils/validation";
 
 // [비밀번호 재설정 완료] 비밀번호 찾기 이메일의 링크(?code=...)를 통해서만 들어올 수 있는 화면.
 // code를 세션으로 교환한 뒤 새 비밀번호를 입력받아 저장합니다.
@@ -37,7 +38,8 @@ export default function ResetPasswordScreen() {
   }, [params.code, router]);
 
   async function submit() {
-    if (newPassword.length < 8) return Alert.alert("비밀번호는 8자 이상 입력해주세요");
+    const passwordError = getPasswordRuleError(newPassword);
+    if (passwordError) return Alert.alert("비밀번호 확인", passwordError);
     if (newPassword !== confirmPassword) return Alert.alert("비밀번호가 서로 달라요");
 
     setLoading(true);

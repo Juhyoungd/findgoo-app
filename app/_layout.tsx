@@ -6,6 +6,7 @@ import { AppDataProvider } from "@/src/state/AppDataContext";
 import { AuthProvider } from "@/src/state/AuthContext";
 import { ToastProvider } from "@/src/state/ToastContext";
 import { ThemeProvider } from "@/src/theme/ThemeContext";
+import { PushNotificationBridge } from "@/src/components/notifications/PushNotificationBridge";
 
 export default function RootLayout() {
   return (
@@ -16,6 +17,7 @@ export default function RootLayout() {
             <ToastProvider>
               <AuthProvider>
                 <AppDataProvider>
+                  <PushNotificationBridge />
                   <StatusBar style="auto" />
                   <Stack screenOptions={{ headerShown: false }} />
                 </AppDataProvider>

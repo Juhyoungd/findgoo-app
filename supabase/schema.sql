@@ -468,3 +468,6 @@ $$ language plpgsql security definer set search_path = public;
 -- 출시 보강 스키마는 반복 실행 가능한 migration으로 관리합니다.
 -- Supabase CLI: supabase db push
 -- 파일: supabase/migrations/202608130001_release_foundations.sql
+-- 파일: supabase/migrations/202608140001_chat_transactions.sql (채팅 단독 거래 완료 처리)
+-- 파일: supabase/migrations/202608140002_transaction_completion_notice.sql (급구 실적 반영 + 완료 알림)
+-- 파일: supabase/migrations/202608140003_seller_only_complete.sql (거래 완료는 판매자만 가능)

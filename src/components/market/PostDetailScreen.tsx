@@ -133,7 +133,7 @@ export function PostDetailScreen() {
           </View>
         </View>
 
-        {!post.mine && (
+        {!post.mine && post.status === "open" && (
           <View style={styles.actionRow}>
             <Pressable
               accessibilityRole="button"
@@ -152,6 +152,14 @@ export function PostDetailScreen() {
             >
               {openingChat ? <ActivityIndicator color={palette.white} /> : <Text style={{ color: palette.white, fontWeight: "800", fontSize: 15 }}>채팅하기</Text>}
             </Pressable>
+          </View>
+        )}
+
+        {!post.mine && post.status !== "open" && (
+          <View style={[styles.closedNotice, { backgroundColor: palette.paper, borderColor: palette.line }]}>
+            <Text style={{ color: palette.muted, fontWeight: "700", fontSize: 13 }}>
+              {post.status === "reserved" ? "이미 거래가 진행 중인 글이에요." : "거래가 마감된 글이에요."}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -231,6 +239,7 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   offerButton: { flex: 1, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderRadius: 14, paddingVertical: 15 },
   chatButton: { flex: 1.4, alignItems: "center", justifyContent: "center", borderRadius: 14, paddingVertical: 15 },
+  closedNotice: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderRadius: 14, paddingVertical: 15, marginTop: 4 },
   modalRoot: { flex: 1, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(31,25,35,0.42)" },
   sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 32, gap: 14 },

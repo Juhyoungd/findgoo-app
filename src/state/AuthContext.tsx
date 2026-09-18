@@ -54,6 +54,11 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 WebBrowser.maybeCompleteAuthSession();
 
+// [임시] Supabase Phone Auth(실제 SMS)를 아직 켜지 않은 동안, 휴대폰 인증 없이도
+// 회원가입 테스트를 계속할 수 있게 하는 스위치입니다. 배포 전 Phone provider를
+// 설정한 뒤 반드시 false로 되돌리세요 — 켜져 있으면 인증번호는 아무 6자리나 통과됩니다.
+const SKIP_PHONE_VERIFICATION = true;
+
 function toKoreanE164(phone: string) {
   const normalized = phone.replace(/[^0-9]/g, "");
   return normalized.startsWith("0") ? `+82${normalized.slice(1)}` : `+82${normalized}`;
@@ -135,6 +140,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signUp(input: { email: string; password: string; name: string; nickname: string; phone: string }) {
     if (!isSupabaseConfigured) return { error: "Supabase 환경변수를 먼저 설정해주세요." };
+
+    if (SKIP_PHONE_VERIFICATION) {
+      // 휴대폰 인증 세션이 없으니, 예전 방식대로 이메일/비밀번호로 바로 계정을 만들어요.
+      const { error } = await supabase.auth.signUp({
+        email: input.email,
+        password: input.password,
+        options: { data: { name: input.name, nickname: input.nickname, phone: input.phone, phone_verified: false } },
+      });
+      return { error: error?.message ?? null };
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const verifiedSession = sessionData.session;
     if (!verifiedSession?.user.phone || verifiedSession.user.phone !== toKoreanE164(input.phone)) {
@@ -155,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function requestPhoneVerification(phone: string) {
+    if (SKIP_PHONE_VERIFICATION) return { error: null };
     if (!isSupabaseConfigured) return { error: "실제 휴대폰 인증을 사용하려면 Supabase 연결이 필요해요." };
     const { error } = await supabase.auth.signInWithOtp({
       phone: toKoreanE164(phone),
@@ -164,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function verifyPhoneCode(phone: string, code: string) {
+    if (SKIP_PHONE_VERIFICATION) return { error: null };
     if (!isSupabaseConfigured) return { error: "실제 휴대폰 인증을 사용하려면 Supabase 연결이 필요해요." };
     const { error } = await supabase.auth.verifyOtp({ phone: toKoreanE164(phone), token: code, type: "sms" });
     return { error: error?.message ?? null };

@@ -153,6 +153,8 @@ create policy "본인 문의 접수" on public.support_inquiries for insert with
 create policy "관리자 문의 답변" on public.support_inquiries for update using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 -- 제안 수락, 중복 수락 방지, 거래/채팅 생성을 한 트랜잭션 안에서 처리합니다.
+-- 기존 accept_offer(반환 void)와 반환 타입이 달라서 create or replace로는 안 바뀌어요.
+drop function if exists public.accept_offer(uuid);
 create or replace function public.accept_offer(p_offer_id uuid)
 returns uuid as $$
 declare

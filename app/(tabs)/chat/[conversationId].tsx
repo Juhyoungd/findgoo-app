@@ -8,6 +8,7 @@ import { AppIcon } from "@/src/components/common/AppIcon";
 import { BackButton } from "@/src/components/common/BackButton";
 import { MotionPressable as Pressable } from "@/src/components/common/MotionPressable";
 import { CounterpartyProfileModal } from "@/src/components/profile/CounterpartyProfileModal";
+import { MannerReviewModal } from "@/src/components/profile/MannerReviewModal";
 import { ProfileAvatar } from "@/src/components/profile/ProfileAvatar";
 import { isSupabaseConfigured, supabase } from "@/src/lib/supabase";
 import { useAppData } from "@/src/state/AppDataContext";
@@ -44,7 +45,7 @@ export default function ChatThreadScreen() {
   const router = useRouter();
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
   const { session } = useAuth();
-  const { conversations, posts, setActiveConversationId, blockMember } = useAppData();
+  const { conversations, posts, transactions, myReviewedTransactionIds, setActiveConversationId, blockMember, completeChatTransaction, submitMannerReview } = useAppData();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
 
@@ -69,6 +70,9 @@ export default function ChatThreadScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [profileVisible, setProfileVisible] = useState(false);
+  const [completingDeal, setCompletingDeal] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<{ transactionId: string; revieweeId: string; revieweeName: string } | null>(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
   const [imageSending, setImageSending] = useState(false);
   const [chatMediaSupported, setChatMediaSupported] = useState<boolean | null>(isSupabaseConfigured ? null : true);
   const listRef = useRef<FlatList<ChatMessage>>(null);
@@ -94,6 +98,12 @@ export default function ChatThreadScreen() {
 
   const conversation = conversations.find((item) => item.id === conversationId);
   const myId = session?.user.id;
+  // 같은 글로 이미 완료된 거래가 있으면 "거래 완료"를 다시 누르지 못하게 하고,
+  // 아직 내가 후기를 안 남겼으면 "후기 남기기"로 바꿔줍니다.
+  const completedTransaction = conversation ? transactions.find((item) => item.postId === conversation.postId && item.status === "completed") : undefined;
+  const needsMyReview = completedTransaction ? !myReviewedTransactionIds.has(completedTransaction.id) : false;
+  // "거래 완료" 처리는 글쓴이(판매자)만 할 수 있고, 후기는 완료된 뒤 양쪽 다 남길 수 있어요.
+  const isSeller = conversation?.sellerId === myId;
   // FlatList는 inverted라 index 0이 화면 맨 아래에 그려져요 — 최신 메시지가 앞에 오도록 뒤집어줍니다.
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
@@ -295,6 +305,46 @@ export default function ChatThreadScreen() {
     Alert.alert("회원 차단", `${conversation.counterpartyName}님의 글과 채팅을 숨길까요?`, [{ text: "취소", style: "cancel" }, { text: "차단", style: "destructive", onPress: run }]);
   }
 
+  // [채팅 단독 거래 완료] 제안·수락 없이 채팅으로만 조건을 맞춰 거래한 경우에도, 여기서 바로
+  // 거래 기록을 남기고 완료 처리한 뒤 매너 후기로 이어줍니다. 같은 글로 이미 완료된 거래가
+  // 있으면(completedTransaction) 다시 완료 처리할 수 없고, 후기만 아직 안 남겼으면 후기
+  // 작성으로 바로 연결해줍니다.
+  function confirmCompleteDeal() {
+    if (!conversation || !conversationId || completingDeal) return;
+
+    if (completedTransaction) {
+      if (needsMyReview) setReviewTarget({ transactionId: completedTransaction.id, revieweeId: conversation.counterpartyId, revieweeName: conversation.counterpartyName });
+      return;
+    }
+    if (!isSeller) return;
+
+    async function run() {
+      setCompletingDeal(true);
+      const { transactionId, error } = await completeChatTransaction(conversationId!);
+      setCompletingDeal(false);
+      if (error || !transactionId) return showToast(error ?? "거래를 완료 처리하지 못했어요.");
+      setReviewTarget({ transactionId, revieweeId: conversation!.counterpartyId, revieweeName: conversation!.counterpartyName });
+    }
+    if (Platform.OS === "web") {
+      if (window.confirm(`${conversation.counterpartyName}님과의 거래를 완료 처리할까요?`)) run();
+      return;
+    }
+    Alert.alert("거래 완료", `${conversation.counterpartyName}님과의 거래를 완료 처리할까요?`, [{ text: "취소", style: "cancel" }, { text: "완료", onPress: run }]);
+  }
+
+  async function submitReview(goodManner: boolean, body: string) {
+    if (!reviewTarget) return;
+    try {
+      setSubmittingReview(true);
+      const { error } = await submitMannerReview(reviewTarget.transactionId, reviewTarget.revieweeId, goodManner, body);
+      if (error) return showToast(error);
+      setReviewTarget(null);
+      showToast("매너 후기를 남겼어요. 감사합니다!");
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
+
   if (!conversation) {
     return (
       <SafeAreaView style={[styles.missing, { backgroundColor: palette.paper }]}>
@@ -313,6 +363,19 @@ export default function ChatThreadScreen() {
           <Text style={{ color: palette.muted, fontSize: 11 }} numberOfLines={1}>{conversation.postTitle}</Text>
         </Pressable>
         <View style={styles.headerActions}>
+        {(isSeller || completedTransaction) && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={completedTransaction ? (needsMyReview ? "매너 후기 남기기" : "거래 완료됨") : "거래 완료 처리"}
+            onPress={confirmCompleteDeal}
+            disabled={completingDeal || (!!completedTransaction && !needsMyReview)}
+            style={[styles.reportButton, { backgroundColor: palette.white, borderColor: completedTransaction && !needsMyReview ? palette.line : palette.lime, opacity: completingDeal ? 0.6 : 1 }]}
+          >
+            <Text style={{ color: completedTransaction && !needsMyReview ? palette.muted : palette.lime, fontSize: 10, fontWeight: "800" }}>
+              {completedTransaction ? (needsMyReview ? "후기 남기기" : "거래 완료됨") : "거래 완료"}
+            </Text>
+          </Pressable>
+        )}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${conversation.counterpartyName}님 신고하기`}
@@ -386,6 +449,13 @@ export default function ChatThreadScreen() {
           setProfileVisible(false);
           router.push({ pathname: "/profile/member", params: { userId: conversation.counterpartyId } });
         }}
+      />
+      <MannerReviewModal
+        visible={!!reviewTarget}
+        revieweeName={reviewTarget?.revieweeName ?? "상대방"}
+        submitting={submittingReview}
+        onClose={() => setReviewTarget(null)}
+        onSubmit={submitReview}
       />
     </SafeAreaView>
   );

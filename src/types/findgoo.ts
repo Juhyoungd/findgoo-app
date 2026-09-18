@@ -83,7 +83,8 @@ export type TransactionStatus = "requested" | "accepted" | "in_progress" | "comp
 export type Transaction = {
   id: string;
   postId: string;
-  offerId: string;
+  offerId: string | null;
+  conversationId?: string | null;
   sellerId: string;
   buyerId: string;
   status: TransactionStatus;

@@ -23,6 +23,22 @@ export async function listSupportInquiries(userId?: string) {
   return { inquiries: await loadLocal(), error: null };
 }
 
+// [관리자] 본인 것만 필터링하지 않고 전체를 가져와요 — RLS가 관리자 role일 때만 전체 행을 허용해줘요.
+export async function listAllSupportInquiries() {
+  if (!isSupabaseConfigured) return { inquiries: [], error: null };
+  const { data, error } = await supabase.from("support_inquiries").select("*").order("created_at", { ascending: false });
+  return { inquiries: data ? data.map(mapRow) : [], error: error?.message ?? null };
+}
+
+export async function answerSupportInquiry(inquiryId: string, answer: string) {
+  if (!isSupabaseConfigured) return { error: "Supabase 연결이 필요해요." };
+  const { error } = await supabase
+    .from("support_inquiries")
+    .update({ status: "answered", answer, answered_at: new Date().toISOString() })
+    .eq("id", inquiryId);
+  return { error: error?.message ?? null };
+}
+
 function mapRow(row: Record<string, unknown>): SupportInquiry {
   return { id: String(row.id), category: String(row.category), title: String(row.title), body: String(row.body), status: row.status as SupportInquiry["status"], answer: row.answer as string | null, createdAt: String(row.created_at) };
 }

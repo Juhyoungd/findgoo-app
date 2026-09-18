@@ -188,7 +188,8 @@ type NoticeRow = {
 type TransactionRow = {
   id: string;
   post_id: string;
-  offer_id: string;
+  offer_id: string | null;
+  conversation_id: string | null;
   seller_id: string;
   buyer_id: string;
   status: TransactionStatus;
@@ -197,7 +198,7 @@ type TransactionRow = {
 };
 
 function mapTransactionRow(row: TransactionRow): Transaction {
-  return { id: row.id, postId: row.post_id, offerId: row.offer_id, sellerId: row.seller_id, buyerId: row.buyer_id, status: row.status, createdAt: row.created_at, completedAt: row.completed_at };
+  return { id: row.id, postId: row.post_id, offerId: row.offer_id, conversationId: row.conversation_id, sellerId: row.seller_id, buyerId: row.buyer_id, status: row.status, createdAt: row.created_at, completedAt: row.completed_at };
 }
 
 function mapNoticeRow(row: NoticeRow): AppNotice {
@@ -243,6 +244,9 @@ type AppDataContextValue = {
   updateOfferStatus: (offerId: string, status: Offer["status"]) => Promise<{ error: string | null }>;
   transactions: Transaction[];
   updateTransactionStatus: (transactionId: string, status: TransactionStatus) => Promise<{ error: string | null }>;
+  completeChatTransaction: (conversationId: string) => Promise<{ transactionId: string | null; error: string | null }>;
+  myReviewedTransactionIds: Set<string>;
+  submitMannerReview: (transactionId: string, revieweeId: string, goodManner: boolean, body: string) => Promise<{ error: string | null }>;
   reports: UserReport[];
   addReport: (input: NewReportInput) => Promise<{ error: string | null }>;
   updateReportStatus: (reportId: string, status: ReportStatus) => Promise<{ error: string | null }>;
@@ -284,6 +288,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [reports, setReports] = useState<UserReport[]>(isSupabaseConfigured ? [] : seedReports);
   const [notices, setNotices] = useState<AppNotice[]>(isSupabaseConfigured ? [] : seedNotices);
   const [blockedMembers, setBlockedMembers] = useState<MemberProfile[]>([]);
+  const [myReviewedTransactionIds, setMyReviewedTransactionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isSupabaseConfigured) return;
@@ -374,6 +379,24 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     load();
     const channel = supabase.channel("transactions-changes").on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => load()).subscribe();
     return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [session]);
+
+  // [매너 후기] 내가 이미 후기를 남긴 거래 id만 따로 들고 있다가, 완료된 거래에서
+  // 후기 작성 화면을 다시 띄울지 말지 판단하는 데 씁니다.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session) return;
+    let cancelled = false;
+    supabase
+      .from("manner_reviews")
+      .select("transaction_id")
+      .eq("reviewer_id", session.user.id)
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        setMyReviewedTransactionIds(new Set(data.map((row) => row.transaction_id as string)));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   // [차단 회원] 내 차단 목록과 공개 프로필만 가져오고, 피드와 채팅 목록에서 해당 회원을 숨깁니다.
@@ -787,6 +810,54 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   }, [session, transactions]);
 
+  // [채팅 단독 거래 완료] 제안 없이 채팅으로만 조건을 맞추고 거래한 경우에도, 채팅방에서
+  // 바로 거래 기록을 만들고 완료 처리할 수 있게 해요 (매너 후기도 이 경로로 이어집니다).
+  const completeChatTransaction = useCallback(
+    async (conversationId: string) => {
+      if (!isSupabaseConfigured || !session) {
+        const conversation = conversationsRef.current.find((item) => item.id === conversationId);
+        if (!conversation) return { transactionId: null, error: "대화방을 찾을 수 없어요." };
+        const transaction: Transaction = {
+          id: uid(),
+          postId: conversation.postId,
+          offerId: null,
+          conversationId,
+          sellerId: conversation.sellerId,
+          buyerId: conversation.buyerId,
+          status: "completed",
+          createdAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+        };
+        setTransactions((items) => [transaction, ...items]);
+        return { transactionId: transaction.id, error: null };
+      }
+
+      const { data, error } = await supabase.rpc("complete_chat_transaction", { p_conversation_id: conversationId });
+      return { transactionId: error ? null : (data as string | null), error: error?.message ?? null };
+    },
+    [session],
+  );
+
+  // [매너 후기] 텍스트 없이 매너 온도 평가(좋아요/아쉬워요)만 남길 수도 있어요 — body는 빈 문자열 허용.
+  const submitMannerReview = useCallback(
+    async (transactionId: string, revieweeId: string, goodManner: boolean, body: string) => {
+      setMyReviewedTransactionIds((ids) => new Set(ids).add(transactionId));
+      if (!isSupabaseConfigured || !session) return { error: null };
+      const { error } = await supabase
+        .from("manner_reviews")
+        .insert({ transaction_id: transactionId, reviewer_id: session.user.id, reviewee_id: revieweeId, good_manner: goodManner, body });
+      if (error) {
+        setMyReviewedTransactionIds((ids) => {
+          const next = new Set(ids);
+          next.delete(transactionId);
+          return next;
+        });
+      }
+      return { error: error?.message ?? null };
+    },
+    [session],
+  );
+
   const addReport = useCallback(
     async (input: NewReportInput) => {
       const reporterName = profile?.nickname || profile?.name || "회원";
@@ -877,6 +948,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateOfferStatus,
       transactions,
       updateTransactionStatus,
+      completeChatTransaction,
+      myReviewedTransactionIds,
+      submitMannerReview,
       reports,
       addReport,
       updateReportStatus,
@@ -904,6 +978,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateOfferStatus,
       transactions,
       updateTransactionStatus,
+      completeChatTransaction,
+      myReviewedTransactionIds,
+      submitMannerReview,
       reports,
       addReport,
       updateReportStatus,
